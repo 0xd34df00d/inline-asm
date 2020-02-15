@@ -8,12 +8,12 @@ import GHC.Word
 
 import Language.Asm.Inline
 
-inlineAsm ".global foobar\nfoobar:\tadd %rbx, %rbx"
+defineAsmFun "foobar" [t| Word -> Word |] "\tadd %rbx, %rbx"
 
-foreign import prim "foobar" foobar :: Word# -> Word#
+foreign import prim "foobar_unlifted" foobar_unlifted :: Word# -> Word#
 
-foobar' :: Word -> Word
-foobar' (W# w) = W# (foobar w)
+foobar :: Word -> Word
+foobar (W# w) = W# (foobar_unlifted w)
 
 main :: IO ()
-main = print $ foobar' 21
+main = print $ foobar 21

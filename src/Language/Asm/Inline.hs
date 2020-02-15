@@ -38,9 +38,15 @@ type family UnboxedFunTy a :: TYPE (UnboxedFunTyRep a) where
   UnboxedFunTy (a -> b) = UnboxedFunTy a -> UnboxedFunTy b
   UnboxedFunTy a = UnboxedType a
 
-inlineAsm :: String -> Q [Dec]
-inlineAsm asmCode = do
-  addForeignSource LangAsm $ unlines [ asmCode
+defineAsmFun :: String -> Q Type -> String -> Q [Dec]
+defineAsmFun name funTyQ asmCode = do
+  addForeignSource LangAsm $ unlines [ ".global " <> asmName
+                                     , asmName <> ":"
+                                     , asmCode
                                      , "\tjmp *(%rbp)"
                                      ]
+
+  funTy <- funTyQ
   pure []
+  where
+    asmName = name <> "_unlifted"
