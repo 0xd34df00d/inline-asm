@@ -30,6 +30,14 @@ instance AsmArg Word where
   unbox (W# w) = w
   rebox = W#
 
+type family UnboxedFunTyRep a :: RuntimeRep where
+  UnboxedFunTyRep (_ -> _) = 'LiftedRep
+  UnboxedFunTyRep a = ArgRep a
+
+type family UnboxedFunTy a :: TYPE (UnboxedFunTyRep a) where
+  UnboxedFunTy (a -> b) = UnboxedFunTy a -> UnboxedFunTy b
+  UnboxedFunTy a = UnboxedType a
+
 inlineAsm :: String -> Q [Dec]
 inlineAsm asmCode = do
   addForeignSource LangAsm $ unlines [ asmCode
