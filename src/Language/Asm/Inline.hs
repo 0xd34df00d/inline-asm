@@ -1,9 +1,12 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE FlexibleInstances, UndecidableInstances #-}
 {-# LANGUAGE DataKinds, PolyKinds, TypeFamilies #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Language.Asm.Inline where
 
+import Control.Monad
+import Data.Generics.Uniplate.Data
 import GHC.Prim
 import GHC.Types hiding (Type)
 import Language.Haskell.TH
@@ -45,8 +48,32 @@ defineAsmFun name funTyQ asmCode = do
                                      , asmCode
                                      , "\tjmp *(%rbp)"
                                      ]
-
   funTy <- funTyQ
-  pure []
+  let importedName = mkName asmName
+  funD <- mkFunD name importedName funTy
+  pure
+    [ ForeignD $ ImportF Prim Safe asmName importedName $ unliftType funTy
+    , SigD (mkName name) funTy
+    , funD
+    ]
   where
     asmName = name <> "_unlifted"
+
+mkFunD :: String -> Name -> Type -> Q Dec
+mkFunD funName importedName funTy = do
+  argNames <- replicateM (countArgs funTy) $ newName "arg"
+  funAppE <- foldM f (VarE importedName) argNames
+  body <- [e| rebox ( $(pure funAppE) ) |]
+  pure $ FunD (mkName funName) [Clause (VarP <$> argNames) (NormalB body) []]
+  where
+    f acc argName = [e| $(pure acc) (unbox $(pure $ VarE argName)) |]
+
+unliftType :: Type -> Type
+unliftType = transformBi f
+  where
+    f x | x == ''Word = ''Word#
+        | x == ''Int = ''Int#
+        | otherwise = x
+
+countArgs :: Type -> Int
+countArgs ty = length [ () | ConT _ <- universeBi ty ] - 1
