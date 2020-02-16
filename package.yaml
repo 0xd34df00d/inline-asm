@@ -23,6 +23,7 @@ dependencies:
 - base >= 4.7 && < 5
 - ghc-prim
 - template-haskell >= 2.15.0.0
+- uniplate
 
 ghc-options:
 - -Wall
