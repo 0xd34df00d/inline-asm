@@ -12,5 +12,5 @@ defineAsmFun "plusWord" [t| Int -> Int -> Int |] "add %r14, %rbx"
 main :: IO ()
 main = hspec $
   describe "Basic functions" $ do
-    it "timesTwo works as expected" $ property $ \num -> timesTwo num `shouldBe` num * 2
-    it "plusWord works as expected" $ property $ \n1 n2 -> plusWord n1 n2 `shouldBe` n1 + n2
+    it "timesTwo" $ property $ \num -> timesTwo num `shouldBe` num * 2
+    it "plusWord" $ property $ \n1 n2 -> plusWord n1 n2 `shouldBe` n1 + n2
