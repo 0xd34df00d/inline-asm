@@ -1,5 +1,5 @@
 {-# LANGUAGE MagicHash #-}
-{-# LANGUAGE FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances, UndecidableInstances, MultiParamTypeClasses, FunctionalDependencies #-}
 {-# LANGUAGE DataKinds, PolyKinds, TypeFamilies #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -12,34 +12,17 @@ import GHC.Types hiding (Type)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-type family ArgRep a :: RuntimeRep where
-  ArgRep Int = 'IntRep
-  ArgRep Word = 'WordRep
-  ArgRep Float = 'FloatRep
-  ArgRep Double = 'DoubleRep
+class AsmArg a (rep :: RuntimeRep) (uty :: TYPE rep) | a -> rep, a -> uty where
+  unbox :: a -> uty
+  rebox :: uty -> a
 
-class AsmArg a where
-  type UnboxedType a :: TYPE (ArgRep a)
-  unbox :: a -> UnboxedType a
-  rebox :: UnboxedType a -> a
-
-instance AsmArg Int where
-  type UnboxedType Int = Int#
+instance AsmArg Int 'IntRep Int# where
   unbox (I# w) = w
   rebox = I#
 
-instance AsmArg Word where
-  type UnboxedType Word = Word#
+instance AsmArg Word 'WordRep Word# where
   unbox (W# w) = w
   rebox = W#
-
-type family UnboxedFunTyRep a :: RuntimeRep where
-  UnboxedFunTyRep (_ -> _) = 'LiftedRep
-  UnboxedFunTyRep a = ArgRep a
-
-type family UnboxedFunTy a :: TYPE (UnboxedFunTyRep a) where
-  UnboxedFunTy (a -> b) = UnboxedFunTy a -> UnboxedFunTy b
-  UnboxedFunTy a = UnboxedType a
 
 defineAsmFun :: String -> Q Type -> String -> Q [Dec]
 defineAsmFun name funTyQ asmCode = do
