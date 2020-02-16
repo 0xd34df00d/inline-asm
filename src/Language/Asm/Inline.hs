@@ -52,11 +52,11 @@ mkFunD funName importedName funTy = do
     f acc argName = [e| $(pure acc) (unbox $(pure $ VarE argName)) |]
 
 unliftType :: Type -> Type
-unliftType = transformBi f
+unliftType = transformBi unliftBaseTy
   where
-    f x | x == ''Word = ''Word#
-        | x == ''Int = ''Int#
-        | otherwise = x
+    unliftBaseTy x | x == ''Word = ''Word#
+                   | x == ''Int = ''Int#
+                   | otherwise = x
 
 countArgs :: Type -> Int
 countArgs ty = length [ () | ConT _ <- universeBi ty ] - 1
