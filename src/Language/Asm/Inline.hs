@@ -29,15 +29,15 @@ defineAsmFun name funTyQ asmCode = do
   addForeignSource LangAsm $ unlines [ ".global " <> asmName
                                      , asmName <> ":"
                                      , asmCode
-                                     , "\tjmp *(%rbp)"
+                                     , "jmp *(%rbp)"
                                      ]
   funTy <- funTyQ
   let importedName = mkName asmName
-  funD <- mkFunD name importedName funTy
+  wrapperFunD <- mkFunD name importedName funTy
   pure
     [ ForeignD $ ImportF Prim Safe asmName importedName $ unliftType funTy
     , SigD (mkName name) funTy
-    , funD
+    , wrapperFunD
     ]
   where
     asmName = name <> "_unlifted"
@@ -46,7 +46,7 @@ mkFunD :: String -> Name -> Type -> Q Dec
 mkFunD funName importedName funTy = do
   argNames <- replicateM (countArgs funTy) $ newName "arg"
   funAppE <- foldM f (VarE importedName) argNames
-  body <- [e| rebox ( $(pure funAppE) ) |]
+  body <- [e| rebox $(pure funAppE) |]
   pure $ FunD (mkName funName) [Clause (VarP <$> argNames) (NormalB body) []]
   where
     f acc argName = [e| $(pure acc) (unbox $(pure $ VarE argName)) |]
