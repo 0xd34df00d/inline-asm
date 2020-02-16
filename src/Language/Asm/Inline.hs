@@ -3,7 +3,9 @@
 {-# LANGUAGE DataKinds, PolyKinds, TypeFamilies #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Language.Asm.Inline where
+module Language.Asm.Inline
+( defineAsmFun
+) where
 
 import Control.Monad
 import Data.Generics.Uniplate.Data
@@ -45,10 +47,12 @@ defineAsmFun name funTyQ asmCode = do
   wrapperFunD <- mkFunD name importedName funTy
   pure
     [ ForeignD $ ImportF Prim Safe asmName importedName $ unliftType funTy
-    , SigD (mkName name) funTy
+    , SigD name' funTy
     , wrapperFunD
+    , PragmaD $ InlineP name' Inline ConLike AllPhases
     ]
   where
+    name' = mkName name
     asmName = name <> "_unlifted"
 
 mkFunD :: String -> Name -> Type -> Q Dec
