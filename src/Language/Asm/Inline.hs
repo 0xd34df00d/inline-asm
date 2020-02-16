@@ -59,4 +59,4 @@ unliftType = transformBi unliftBaseTy
                    | otherwise = x
 
 countArgs :: Type -> Int
-countArgs ty = length [ () | ConT _ <- universeBi ty ] - 1
+countArgs ty = length $ filter (== ArrowT) $ universeBi ty
