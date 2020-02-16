@@ -24,6 +24,15 @@ instance AsmArg Word 'WordRep Word# where
   unbox (W# w) = w
   rebox = W#
 
+{- TODO better to do reboxing via this instance if it's possible to make this work
+ - contrarily to the ghc's complaints about illegal levity polymorphism.
+
+instance (AsmArg a repa unboxedTyA, AsmArg b repb unboxedTyB)
+       => AsmArg (a, b) ('TupleRep '[ repa, repb ]) (# unboxedTyA, unboxedTyB #) where
+  unbox (a, b) = (# unbox a, unbox b #)
+  rebox (# a# , b# #) = ( rebox a# , rebox b# )
+  -}
+
 defineAsmFun :: String -> Q Type -> String -> Q [Dec]
 defineAsmFun name funTyQ asmCode = do
   addForeignSource LangAsm $ unlines [ ".global " <> asmName
