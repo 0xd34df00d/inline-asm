@@ -12,9 +12,9 @@ import GHC.Types hiding (Type)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-class AsmArg a (rep :: RuntimeRep) (uty :: TYPE rep) | a -> rep, a -> uty where
-  unbox :: a -> uty
-  rebox :: uty -> a
+class AsmArg a (rep :: RuntimeRep) (unboxedTy :: TYPE rep) | a -> rep, a -> unboxedTy where
+  unbox :: a -> unboxedTy
+  rebox :: unboxedTy -> a
 
 instance AsmArg Int 'IntRep Int# where
   unbox (I# w) = w
