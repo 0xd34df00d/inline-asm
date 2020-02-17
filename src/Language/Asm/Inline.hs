@@ -35,11 +35,17 @@ instance (AsmArg a repa unboxedTyA, AsmArg b repb unboxedTyB)
   rebox (# a# , b# #) = ( rebox a# , rebox b# )
   -}
 
-defineAsmFun :: String -> Q Type -> String -> Q [Dec]
+class AsmCode c where
+  codeToString :: c -> String
+
+instance AsmCode String where
+  codeToString = id
+
+defineAsmFun :: AsmCode c => String -> Q Type -> c -> Q [Dec]
 defineAsmFun name funTyQ asmCode = do
   addForeignSource LangAsm $ unlines [ ".global " <> asmName
                                      , asmName <> ":"
-                                     , asmCode
+                                     , codeToString asmCode
                                      , "jmp *(%rbp)"
                                      ]
   funTy <- funTyQ
