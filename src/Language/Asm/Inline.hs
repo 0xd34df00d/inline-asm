@@ -143,7 +143,7 @@ mkFunD funName importedName funTy = do
                   retNames <- replicateM n $ newName "ret"
                   boxing <- forM retNames $ \name -> [e| rebox $(pure $ VarE name) |]
                   [e| case $(pure funAppE) of
-                           $(pure $ UnboxedTupP $ VarP <$> retNames) -> $(pure $ TupE $ boxing)
+                           $(pure $ UnboxedTupP $ VarP <$> retNames) -> $(pure $ TupE boxing)
                     |]
   pure $ FunD (mkName funName) [Clause (VarP <$> argNames) (NormalB body) []]
   where
