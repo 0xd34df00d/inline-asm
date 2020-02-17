@@ -33,6 +33,14 @@ instance AsmArg Word 'WordRep Word# where
   unbox (W# w) = w
   rebox = W#
 
+instance AsmArg Double 'DoubleRep Double# where
+  unbox (D# d) = d
+  rebox = D#
+
+instance AsmArg Float 'FloatRep Float# where
+  unbox (F# f) = f
+  rebox = F#
+
 {- TODO better to do reboxing via this instance if it's possible to make this work
  - contrarily to the ghc's complaints about illegal levity polymorphism.
 
@@ -156,6 +164,8 @@ unliftType = transformBi unliftTuple . transformBi unliftBaseTy
   where
     unliftBaseTy x | x == ''Word = ''Word#
                    | x == ''Int = ''Int#
+                   | x == ''Double = ''Double#
+                   | x == ''Float = ''Float#
                    | otherwise = x
     unliftTuple (TupleT n) = UnboxedTupleT n
     unliftTuple x = x
