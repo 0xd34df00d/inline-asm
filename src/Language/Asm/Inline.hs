@@ -124,6 +124,10 @@ substituteArgs (args, contents) = AsmQQParsed (length args) <$> go contents
 argIdxToReg :: Int -> Either String String
 argIdxToReg 0 = pure "rbx"
 argIdxToReg 1 = pure "r14"
+argIdxToReg 2 = pure "rsi"
+argIdxToReg 3 = pure "rdi"
+argIdxToReg 4 = pure "r8"
+argIdxToReg 5 = pure "r9"
 argIdxToReg n = throwError $ "Unsupported register index: " <> show n
 
 trim :: String -> String
