@@ -87,11 +87,9 @@ asm = QuasiQuoter { quoteExp = asmQE, quotePat = unsupported, quoteType = unsupp
     unsupported = const $ error "Unsupported quasiquotation type"
 
 asmQE :: String -> Q Exp
-asmQE p = do
-  runIO $ print p
-  case parseAsmQQ p of
-       Left err -> error err
-       Right parsed -> [e| parsed |]
+asmQE p = case parseAsmQQ p of
+               Left err -> error err
+               Right parsed -> [e| parsed |]
 
 data AsmQQParsed = AsmQQParsed
   { argsCount :: Int
