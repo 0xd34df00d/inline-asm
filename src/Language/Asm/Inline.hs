@@ -37,9 +37,11 @@ instance (AsmArg a repa unboxedTyA, AsmArg b repb unboxedTyB)
 
 class AsmCode c where
   codeToString :: c -> String
+  validateCode :: Type -> c -> Either String ()
 
 instance AsmCode String where
   codeToString = id
+  validateCode _ _ = pure ()
 
 defineAsmFun :: AsmCode c => String -> Q Type -> c -> Q [Dec]
 defineAsmFun name funTyQ asmCode = do
@@ -49,6 +51,9 @@ defineAsmFun name funTyQ asmCode = do
                                      , "jmp *(%rbp)"
                                      ]
   funTy <- funTyQ
+  case validateCode funTy asmCode of
+       Right () -> pure ()
+       Left err -> error err
   let importedName = mkName asmName
   wrapperFunD <- mkFunD name importedName funTy
   pure
