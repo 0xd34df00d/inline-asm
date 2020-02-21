@@ -41,15 +41,6 @@ instance AsmArg Float 'FloatRep Float# where
   unbox (F# f) = f
   rebox = F#
 
-{- TODO better to do reboxing via this instance if it's possible to make this work
- - contrarily to the ghc's complaints about illegal levity polymorphism.
-
-instance (AsmArg a repa unboxedTyA, AsmArg b repb unboxedTyB)
-       => AsmArg (a, b) ('TupleRep '[ repa, repb ]) (# unboxedTyA, unboxedTyB #) where
-  unbox (a, b) = (# unbox a, unbox b #)
-  rebox (# a# , b# #) = ( rebox a# , rebox b# )
-  -}
-
 class AsmCode c where
   codeToString :: c -> String
   validateCode :: Type -> c -> Either String ()
