@@ -24,9 +24,7 @@ instance AsmCode AsmQQParsed where
       check str False = throwError $ "Type error: " <> str
 
 asm :: QuasiQuoter
-asm = QuasiQuoter { quoteExp = asmQE, quotePat = unsupported, quoteType = unsupported, quoteDec = unsupported }
-  where
-    unsupported = const $ error "Unsupported quasiquotation type"
+asm = expQQ asmQE
 
 asmQE :: String -> Q Exp
 asmQE p = case parseAsmQQ p of
@@ -76,3 +74,8 @@ trim :: String -> String
 trim = pass . pass
   where
     pass = reverse . dropWhile (== ' ')
+expQQ :: (String -> Q Exp) -> QuasiQuoter
+expQQ qq = QuasiQuoter { quoteExp = qq, quotePat = unsupported, quoteType = unsupported, quoteDec = unsupported }
+  where
+    unsupported = const $ error "Unsupported quasiquotation type"
+
