@@ -19,6 +19,7 @@ dependencies:
 - base >= 4.7 && < 5
 - either
 - ghc-prim
+- megaparsec
 - mtl
 - template-haskell >= 2.15.0.0
 - uniplate

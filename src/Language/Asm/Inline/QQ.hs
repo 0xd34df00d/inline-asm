@@ -1,16 +1,23 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveLift #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
-module Language.Asm.Inline.QQ(asm) where
+module Language.Asm.Inline.QQ(asm, asmTy) where
 
-import Control.Arrow
 import Control.Monad.Except
+import Data.Bifunctor
+import Data.Char
 import Data.Either.Combinators
 import Data.List
+import Data.Void
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
 import Language.Haskell.TH.Syntax
+import Text.Megaparsec
+import Text.Megaparsec.Char
+import qualified Text.Megaparsec.Char.Lexer as ML
 
 import Language.Asm.Inline.AsmCode
 import Language.Asm.Inline.Util
@@ -40,10 +47,6 @@ parseAsmQQ :: String -> Either String AsmQQParsed
 parseAsmQQ = findSplitter
          >=> (pure . first words)
          >=> substituteArgs
-  where
-    findSplitter p = case break (== '|') p of
-                          (vars, '|' : body) -> pure (vars, body)
-                          _ -> throwError "Unable to find variable section separator"
 
 substituteArgs :: ([String], String) -> Either String AsmQQParsed
 substituteArgs (args, contents) = AsmQQParsed (length args) <$> go contents
@@ -74,8 +77,57 @@ trim :: String -> String
 trim = pass . pass
   where
     pass = reverse . dropWhile (== ' ')
+
+findSplitter :: String -> Either String (String, String)
+findSplitter p = case break (== '|') p of
+                      (vars, '|' : body) -> pure (vars, body)
+                      _ -> throwError "Unable to find variable section separator"
+
 expQQ :: (String -> Q Exp) -> QuasiQuoter
 expQQ qq = QuasiQuoter { quoteExp = qq, quotePat = unsupported, quoteType = unsupported, quoteDec = unsupported }
   where
     unsupported = const $ error "Unsupported quasiquotation type"
 
+asmTy :: QuasiQuoter
+asmTy = expQQ asmTyQE
+
+asmTyQE :: String -> Q Exp
+asmTyQE str = case parseAsmTyQQ str of
+                   Left err -> error err
+                   Right parsed -> [e| parsed |]
+
+newtype AsmVarName = AsmVarName { varName :: String } deriving (Show, Lift)
+newtype AsmVarType = AsmVarType { varType :: String } deriving (Show, Lift)
+
+data AsmQQType = AsmQQType
+ { args :: [(AsmVarName, AsmVarType)]
+ , rets :: [AsmVarType]
+ } deriving (Show, Lift)
+
+parseAsmTyQQ :: String -> Either String AsmQQType
+parseAsmTyQQ str = do
+  (inputStr, outputStr) <- findSplitter str
+  let rets = AsmVarType <$> words outputStr
+  args <- first showParseError $ runParser (parseInTypes <* eof) "" inputStr
+  pure AsmQQType { .. }
+  where
+    showParseError = errorBundlePretty :: ParseErrorBundle String Void -> String
+
+parseInTypes :: forall m e. MonadParsec e String m => m [(AsmVarName, AsmVarType)]
+parseInTypes = space *> many parseType
+  where
+    parseType = do
+      void $ lexeme $ string "("
+      name <- lexeme $ parseWFirst letterChar
+      void $ lexeme $ string ":"
+      ty <- lexeme $ parseWFirst upperChar
+      void $ lexeme $ string ")"
+      pure (AsmVarName name, AsmVarType ty)
+
+    parseWFirst :: m Char -> m String
+    parseWFirst p = do
+      firstLetter <- p
+      rest <- takeWhileP (Just "variable") isAlphaNum
+      pure $ firstLetter : rest
+
+    lexeme = ML.lexeme $ ML.space space1 empty empty
