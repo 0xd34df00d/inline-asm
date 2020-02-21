@@ -1,5 +1,9 @@
 # Changelog for inline-asm
 
+## v0.2.0.0
+
+* Support named arguments.
+
 ## v0.1.1.0
 
 * Support returning tuples.
