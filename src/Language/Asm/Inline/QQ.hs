@@ -131,7 +131,7 @@ parseInTypes = space *> many parseType
   where
     parseType = do
       void $ lexeme $ string "("
-      name <- lexeme $ parseWFirst letterChar
+      name <- lexeme $ parseWFirst letterChar <|> string "_"
       void $ lexeme $ string ":"
       ty <- lexeme $ parseWFirst upperChar
       void $ lexeme $ string ")"
