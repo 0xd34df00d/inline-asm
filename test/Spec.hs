@@ -39,11 +39,11 @@ defineAsmFun "plusFloatQQ"
 
 defineAsmFun "timesTwoDoubleQQ"
   [asmTy| (a : Double) | (_ : Double) |]
-  [asm| addss ${a}, ${a} |]
+  [asm| addsd ${a}, ${a} |]
 
 defineAsmFun "plusDoubleQQ"
   [asmTy| (a : Double) (b : Double) | (_ : Double) |]
-  [asm| addss ${b}, ${a} |]
+  [asm| addsd ${b}, ${a} |]
 
 main :: IO ()
 main = hspec $ do
