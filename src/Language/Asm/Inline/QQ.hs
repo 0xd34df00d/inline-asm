@@ -48,7 +48,8 @@ substituteArgs AsmQQType { .. } AsmQQCode { .. } = do
     go' argRegs retRegs = go
       where
         go ('$' : '{' : rest)
-          | (argStr, '}' : rest') <- break (== '}') rest = do
+          | (argStr, '}' : rest') <- break (== '}') rest
+          , not $ null argStr = do
             let arg = AsmVarName $ trim argStr
             RegName reg <- maybeToRight ("Unknown argument: `" <> show arg <> "`") $ msum [lookup arg argRegs, lookup arg retRegs]
             (('%' : reg) <>) <$> go rest'
