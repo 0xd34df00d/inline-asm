@@ -1,13 +1,13 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, FunctionalDependencies #-}
 
 module Language.Asm.Inline.AsmCode where
 
 import Language.Haskell.TH.Syntax
 
-class AsmCode c where
-  codeToString :: c -> String
-  validateCode :: Type -> c -> Either String ()
+class AsmCode tyAnn code | code -> tyAnn, tyAnn -> code where
+  codeToString :: tyAnn -> code -> String
+  toTypeQ :: tyAnn -> Q Type
 
-instance AsmCode String where
-  codeToString = id
-  validateCode _ _ = pure ()
+instance AsmCode (Q Type) String where
+  codeToString _ = id
+  toTypeQ = id

@@ -1,16 +1,20 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveLift #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Language.Asm.Inline.QQ(asm, asmTy) where
 
+import qualified Data.Map as M
 import Control.Monad.Except
 import Data.Bifunctor
 import Data.Char
 import Data.Either.Combinators
+import Data.Foldable
 import Data.List
+import Data.String
 import Data.Void
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
@@ -20,58 +24,67 @@ import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as ML
 
 import Language.Asm.Inline.AsmCode
-import Language.Asm.Inline.Util
 
-instance AsmCode AsmQQParsed where
-  codeToString = asmBody
-  validateCode ty code =
-    check "arguments count mismatch" $ argsCount code == countArgs ty
-    where
-      check _ True = pure ()
-      check str False = throwError $ "Type error: " <> str
+instance AsmCode AsmQQType AsmQQCode where
+  codeToString ty code = case substituteArgs ty code of
+                              Left e -> error e
+                              Right s -> s
+  toTypeQ = unreflectTy
 
 asm :: QuasiQuoter
 asm = expQQ asmQE
 
 asmQE :: String -> Q Exp
-asmQE p = case parseAsmQQ p of
-               Left err -> error err
-               Right parsed -> [e| parsed |]
+asmQE p = [e| AsmQQCode p |]
 
-data AsmQQParsed = AsmQQParsed
-  { argsCount :: Int
-  , asmBody :: String
-  } deriving (Show, Lift)
+newtype AsmQQCode = AsmQQCode { asmCode :: String }
 
-parseAsmQQ :: String -> Either String AsmQQParsed
-parseAsmQQ = findSplitter
-         >=> (pure . first words)
-         >=> substituteArgs
-
-substituteArgs :: ([String], String) -> Either String AsmQQParsed
-substituteArgs (args, contents) = AsmQQParsed (length args) <$> go contents
+substituteArgs :: AsmQQType -> AsmQQCode -> Either String String
+substituteArgs AsmQQType { .. } AsmQQCode { .. } = do
+  argRegs <- computeRegisters args
+  retRegs <- computeRegisters rets
+  go' argRegs retRegs asmCode
   where
-    go ('$' : '{' : rest)
-      | (arg, '}' : rest') <- break (== '}') rest = do
-        idx <- if retPrefix `isPrefixOf` arg
-                  then pure $ read (drop (length retPrefix) arg)
-                  else maybeToRight ("Unknown argument: `" <> trim arg <> "`") $ elemIndex (trim arg) args
-        reg <- argIdxToReg idx
-        (('%' : reg) <>) <$> go rest'
-      | otherwise = throwError $ "Unable to parse argument: " <> take 20 rest <> "..."
-    go (x : xs) = (x :) <$> go xs
-    go [] = pure []
+    go' argRegs retRegs = go
+      where
+        go ('$' : '{' : rest)
+          | (argStr, '}' : rest') <- break (== '}') rest = do
+            let arg = AsmVarName $ trim argStr
+            RegName reg <- maybeToRight ("Unknown argument: `" <> show arg <> "`") $ msum [lookup arg argRegs, lookup arg retRegs]
+            (('%' : reg) <>) <$> go rest'
+          | otherwise = throwError $ "Unable to parse argument: " <> take 20 rest <> "..."
+        go (x : xs) = (x :) <$> go xs
+        go [] = pure []
 
-    retPrefix = "ret"
+newtype RegName = RegName { regName :: String } deriving (Show, IsString)
 
-argIdxToReg :: Int -> Either String String
-argIdxToReg 0 = pure "rbx"
-argIdxToReg 1 = pure "r14"
-argIdxToReg 2 = pure "rsi"
-argIdxToReg 3 = pure "rdi"
-argIdxToReg 4 = pure "r8"
-argIdxToReg 5 = pure "r9"
-argIdxToReg n = throwError $ "Unsupported register index: " <> show n
+computeRegisters :: [(AsmVarName, AsmVarType)] -> Either String [(AsmVarName, RegName)]
+computeRegisters vars = fst <$> foldM f ([], mempty) vars
+  where
+    f (regNames, regCounts) (name, ty) = do
+      cat <- categorize ty
+      let idx = M.findWithDefault 0 cat regCounts
+      reg <- argIdxToReg cat idx
+      pure ((name, reg) : regNames, M.insert cat (idx + 1) regCounts)
+
+data VarTyCat = Integer | Other deriving (Eq, Ord, Show, Enum, Bounded)
+
+categorize :: AsmVarType -> Either String VarTyCat
+categorize (AsmVarType "Int") = pure Integer
+categorize (AsmVarType "Word") = pure Integer
+categorize (AsmVarType "Float") = pure Other
+categorize (AsmVarType "Double") = pure Other
+categorize (AsmVarType s) = throwError $ "Unknown register type: " <> s
+
+argIdxToReg :: VarTyCat -> Int -> Either String RegName
+argIdxToReg Integer 0 = pure "rbx"
+argIdxToReg Integer 1 = pure "r14"
+argIdxToReg Integer 2 = pure "rsi"
+argIdxToReg Integer 3 = pure "rdi"
+argIdxToReg Integer 4 = pure "r8"
+argIdxToReg Integer 5 = pure "r9"
+argIdxToReg Other n | n >= 0 && n <= 6 = pure $ RegName $ "xmm" <> show (n + 1)
+argIdxToReg _ n = throwError $ "Unsupported register index: " <> show n
 
 trim :: String -> String
 trim = pass . pass
@@ -96,19 +109,19 @@ asmTyQE str = case parseAsmTyQQ str of
                    Left err -> error err
                    Right parsed -> [e| parsed |]
 
-newtype AsmVarName = AsmVarName { varName :: String } deriving (Show, Lift)
-newtype AsmVarType = AsmVarType { varType :: String } deriving (Show, Lift)
+newtype AsmVarName = AsmVarName { varName :: String } deriving (Show, Eq, Lift)
+newtype AsmVarType = AsmVarType { varType :: String } deriving (Show, Eq, Lift)
 
 data AsmQQType = AsmQQType
  { args :: [(AsmVarName, AsmVarType)]
- , rets :: [AsmVarType]
+ , rets :: [(AsmVarName, AsmVarType)]
  } deriving (Show, Lift)
 
 parseAsmTyQQ :: String -> Either String AsmQQType
 parseAsmTyQQ str = do
   (inputStr, outputStr) <- findSplitter str
-  let rets = AsmVarType <$> words outputStr
   args <- first showParseError $ runParser (parseInTypes <* eof) "" inputStr
+  rets <- first showParseError $ runParser (parseInTypes <* eof) "" outputStr
   pure AsmQQType { .. }
   where
     showParseError = errorBundlePretty :: ParseErrorBundle String Void -> String
@@ -131,3 +144,27 @@ parseInTypes = space *> many parseType
       pure $ firstLetter : rest
 
     lexeme = ML.lexeme $ ML.space space1 empty empty
+
+unreflectTy :: AsmQQType -> Q Type
+unreflectTy AsmQQType { .. } = do
+  retTy <- unreflectRetTy rets
+  maybeArgTyNames <- lookupTyNames args
+  case maybeArgTyNames of
+       Nothing -> error "Unable to lookup some of the type names"
+       Just argTyNames -> foldrM argFolder retTy argTyNames
+  where
+    argFolder argName funAcc = [t| $(pure $ ConT argName) -> $(pure funAcc) |]
+
+unreflectRetTy :: [(AsmVarName, AsmVarType)] -> Q Type
+unreflectRetTy [] = [t| () |]
+unreflectRetTy rets = do
+  maybeRetTyNames <- lookupTyNames rets
+  case maybeRetTyNames of
+       Nothing -> error "Unable to lookup some of the type names"
+       Just [tyName] -> pure $ ConT tyName
+       Just retNames -> pure $ foldl retFolder (TupleT $ length retNames) retNames
+  where
+    retFolder tupAcc ret = tupAcc `AppT` ConT ret
+
+lookupTyNames :: [(AsmVarName, AsmVarType)] -> Q (Maybe [Name])
+lookupTyNames = fmap sequence . mapM (lookupTypeName . varType . snd)

@@ -35,17 +35,14 @@ instance AsmArg Float 'FloatRep Float# where
   unbox (F# f) = f
   rebox = F#
 
-defineAsmFun :: AsmCode c => String -> Q Type -> c -> Q [Dec]
-defineAsmFun name funTyQ asmCode = do
+defineAsmFun :: AsmCode tyAnn code => String -> tyAnn -> code -> Q [Dec]
+defineAsmFun name tyAnn asmCode = do
   addForeignSource LangAsm $ unlines [ ".global " <> asmName
                                      , asmName <> ":"
-                                     , codeToString asmCode
+                                     , codeToString tyAnn asmCode
                                      , "jmp *(%rbp)"
                                      ]
-  funTy <- funTyQ
-  case validateCode funTy asmCode of
-       Right () -> pure ()
-       Left err -> error err
+  funTy <- toTypeQ tyAnn
   let importedName = mkName asmName
   wrapperFunD <- mkFunD name importedName funTy
   pure
