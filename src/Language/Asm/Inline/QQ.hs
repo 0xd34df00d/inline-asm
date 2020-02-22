@@ -13,7 +13,6 @@ import Data.Bifunctor
 import Data.Char
 import Data.Either.Combinators
 import Data.Foldable
-import Data.List
 import Data.String
 import Data.Void
 import Language.Haskell.TH
