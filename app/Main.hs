@@ -9,6 +9,14 @@ import Language.Asm.Inline.QQ
 defineAsmFun "swap" [t| Int -> Int -> (Int, Int) |] "xchg %rbx, %r14"
 
 defineAsmFun "swap2p1"
+  [asmTy| (a : Int) (b : Int) | (a : Int) (b : Int) |]
+  [asm|
+  xchg ${a}, ${b}
+  add $1, ${b}
+  |]
+
+{-
+defineAsmFun "swap2p1"
   [t| Int -> Int -> (Int, Int) |]
   [asm| a b |
   xchg ${a}, ${b}
@@ -17,8 +25,10 @@ defineAsmFun "swap2p1"
 
 defineAsmFun "testInt" [t| Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int |] "int $3"
 defineAsmFun "testDouble" [t| Double -> Double -> Double -> Double -> Double -> Double -> Double -> Double |] "int $3"
+-}
 
 main :: IO ()
 main = do
-  print $ testInt 0 1 2 3 4 5 6
-  print $ testDouble 1 1 0 0 0 0 1
+  print $ swap2p1 2 4
+  --print $ testInt 0 1 2 3 4 5 6
+  --print $ testDouble 1 1 0 0 0 0 1
