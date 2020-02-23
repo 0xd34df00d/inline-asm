@@ -78,13 +78,16 @@ mkFunD funName importedName funTy = do
     f acc argName = [e| $(pure acc) (unbox $(pure $ VarE argName)) |]
 
 unliftType :: Type -> Type
-unliftType = transformBi unliftTuple . transformBi unliftBaseTy
+unliftType = transformBi unliftTuple . transformBi unliftBaseTy . transformBi unliftPtrs
   where
     unliftBaseTy x | x == ''Word = ''Word#
                    | x == ''Int = ''Int#
                    | x == ''Double = ''Double#
                    | x == ''Float = ''Float#
                    | otherwise = x
+    unliftPtrs (AppT (ConT name) _) | name == ''Ptr = ConT ''Addr#
+    unliftPtrs x = x
+
     unliftTuple (TupleT n) = UnboxedTupleT n
     unliftTuple x = x
 
