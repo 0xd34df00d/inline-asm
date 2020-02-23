@@ -45,6 +45,16 @@ defineAsmFun "plusDoubleQQ"
   [asmTy| (a : Double) (b : Double) | (_ : Double) |]
   [asm| addsd ${b}, ${a} |]
 
+
+defineAsmFun "timesTwoEverything"
+  [asmTy| (d : Double) (n : Int) (f : Float) (w : Word) | (_ : Double) (_ : Int) (_ : Float) (_ : Word) |]
+  [asm|
+  addsd ${d}, ${d}
+  addss ${f}, ${f}
+  add ${n}, ${n}
+  add ${w}, ${w}
+  |]
+
 main :: IO ()
 main = hspec $ do
   describe "Works with Ints (the non-QQ version)" $ do
@@ -61,3 +71,5 @@ main = hspec $ do
   describe "Works on Doubles" $ do
     it "timesTwo" $ property $ \num -> timesTwoDoubleQQ num `shouldBe` num * 2
     it "plusWord" $ property $ \n1 n2 -> plusDoubleQQ n1 n2 `shouldBe` n1 + n2
+  describe "Works on mixed types" $
+    it "timesTwoEverything" $ property $ \d n f w -> timesTwoEverything d n f w `shouldBe` (d + d, n * 2, f + f, w * 2)
