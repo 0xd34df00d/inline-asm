@@ -150,8 +150,8 @@ unreflectTy AsmQQType { .. } = do
   retTy <- unreflectRetTy rets
   maybeArgTyNames <- lookupTyNames args
   case maybeArgTyNames of
-       Nothing -> error "Unable to lookup some of the type names"
-       Just argTyNames -> foldrM argFolder retTy argTyNames
+       Left err -> error err
+       Right argTyNames -> foldrM argFolder retTy argTyNames
   where
     argFolder argName funAcc = [t| $(pure $ ConT argName) -> $(pure funAcc) |]
 
@@ -160,11 +160,13 @@ unreflectRetTy [] = [t| () |]
 unreflectRetTy rets = do
   maybeRetTyNames <- lookupTyNames rets
   case maybeRetTyNames of
-       Nothing -> error "Unable to lookup some of the type names"
-       Just [tyName] -> pure $ ConT tyName
-       Just retNames -> pure $ foldl retFolder (TupleT $ length retNames) retNames
+       Left err -> error err
+       Right [tyName] -> pure $ ConT tyName
+       Right retNames -> pure $ foldl retFolder (TupleT $ length retNames) retNames
   where
     retFolder tupAcc ret = tupAcc `AppT` ConT ret
 
-lookupTyNames :: [(AsmVarName, AsmVarType)] -> Q (Maybe [Name])
-lookupTyNames = fmap sequence . mapM (lookupTypeName . varType . snd)
+lookupTyNames :: [(AsmVarName, AsmVarType)] -> Q (Either String [Name])
+lookupTyNames = fmap sequence . mapM f
+  where
+    f (name, ty) = maybeToRight ("Unable to lookup type " <> show ty <> " for var " <> show name) <$> lookupTypeName (varType ty)
