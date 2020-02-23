@@ -37,9 +37,9 @@ instance AsmArg Float 'FloatRep Float# where
   unbox (F# f) = f
   rebox = F#
 
-instance AsmArg (Ptr a) 'AddrRep Addr# where
-  unbox (Ptr p) = p
-  rebox = Ptr
+instance AsmArg IntPtr 'AddrRep Addr# where
+  unbox intptr = case intPtrToPtr intptr :: Ptr () of Ptr p -> p
+  rebox addr = ptrToIntPtr (Ptr addr :: Ptr ())
 
 defineAsmFun :: AsmCode tyAnn code => String -> tyAnn -> code -> Q [Dec]
 defineAsmFun name tyAnn asmCode = do
@@ -78,16 +78,14 @@ mkFunD funName importedName funTy = do
     f acc argName = [e| $(pure acc) (unbox $(pure $ VarE argName)) |]
 
 unliftType :: Type -> Type
-unliftType = transformBi unliftTuple . transformBi unliftBaseTy . transformBi unliftPtrs
+unliftType = transformBi unliftTuple . transformBi unliftBaseTy
   where
     unliftBaseTy x | x == ''Word = ''Word#
                    | x == ''Int = ''Int#
+                   | x == ''IntPtr = ''Addr#
                    | x == ''Double = ''Double#
                    | x == ''Float = ''Float#
                    | otherwise = x
-    unliftPtrs (AppT (ConT name) _) | name == ''Ptr = ConT ''Addr#
-    unliftPtrs x = x
-
     unliftTuple (TupleT n) = UnboxedTupleT n
     unliftTuple x = x
 

@@ -72,6 +72,7 @@ data VarTyCat = Integer | Other deriving (Eq, Ord, Show, Enum, Bounded)
 categorize :: AsmVarType -> Either String VarTyCat
 categorize (AsmVarType "Int") = pure Integer
 categorize (AsmVarType "Word") = pure Integer
+categorize (AsmVarType "IntPtr") = pure Integer
 categorize (AsmVarType "Float") = pure Other
 categorize (AsmVarType "Double") = pure Other
 categorize (AsmVarType s) = throwError $ "Unknown register type: " <> s
