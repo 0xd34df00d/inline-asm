@@ -102,16 +102,16 @@ defineAsmFun "countCharsSSE42"
   vpxor %xmm0, %xmm0, %xmm0
   vpshufb %xmm0, %xmm7, %xmm7
 
-  movl $16, %eax
-  movl $16, %edx
+  mov $16, %eax
+  mov $16, %edx
 
   xor ${cnt}, ${cnt}
 loop:
   vmovdqa (${ptr}), %xmm0
   vpcmpestrm $10, %xmm7, %xmm0
   vmovq %xmm0, %r8
-  popcntq %r8, %r8
-  addq %r8, ${cnt}
+  popcnt %r8, %r8
+  add %r8, ${cnt}
 
   add $16, ${ptr}
   sub $16, ${len}
