@@ -17,11 +17,12 @@ and then use the function `timesTwo` as any other function of type `Word -> Word
 main = print $ timesTwo 21
 ```
 
-There is also an alternative notation allowing named arguments:
+There is also an alternative notation allowing named arguments to avoid remembering
+which arguments are passed in which registers:
 ```haskell
 defineAsmFun "swap2p1"
-  [t| Int -> Int -> (Int, Int) |]
-  [asm| a b |
+  [asmTy| (a : Int) (b : Int) | (_ : Int) (_ : Int)]
+  [asm|
   xchg ${a}, ${b}
   add $1, ${b}
   |]
