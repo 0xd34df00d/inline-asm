@@ -7,7 +7,9 @@ module Language.Asm.Inline(defineAsmFun) where
 
 import Control.Monad
 import Data.Generics.Uniplate.Data
+import Foreign.Ptr
 import GHC.Prim
+import GHC.Ptr
 import GHC.Types hiding (Type)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
@@ -34,6 +36,10 @@ instance AsmArg Double 'DoubleRep Double# where
 instance AsmArg Float 'FloatRep Float# where
   unbox (F# f) = f
   rebox = F#
+
+instance AsmArg (Ptr a) 'AddrRep Addr# where
+  unbox (Ptr p) = p
+  rebox = Ptr
 
 defineAsmFun :: AsmCode tyAnn code => String -> tyAnn -> code -> Q [Dec]
 defineAsmFun name tyAnn asmCode = do
