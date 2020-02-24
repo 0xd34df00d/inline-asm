@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
 {-# LANGUAGE GHCForeignImportPrim, UnliftedFFITypes, UnboxedTuples #-}
 
+import Foreign.Ptr
 import Test.Hspec
 import Test.QuickCheck
 
@@ -55,6 +56,19 @@ defineAsmFun "timesTwoEverything"
   add ${w}, ${w}
   |]
 
+
+defineAsmFun "addPtr"
+  [asmTy| (ptr : Ptr Int) (shift : Int) | (_ : Ptr Int) |]
+  [asm|
+  add ${shift}, ${ptr}
+  |]
+
+defineAsmFun "swapPtrs"
+  [asmTy| (a : Ptr Int) (b : Ptr Int) | (_ : Ptr Int) (_ : Ptr Int) |]
+  [asm|
+  xchg ${a}, ${b}
+  |]
+
 main :: IO ()
 main = hspec $ do
   describe "Works with Ints (the non-QQ version)" $ do
@@ -71,5 +85,14 @@ main = hspec $ do
   describe "Works on Doubles" $ do
     it "timesTwo" $ property $ \num -> timesTwoDoubleQQ num `shouldBe` num * 2
     it "plusWord" $ property $ \n1 n2 -> plusDoubleQQ n1 n2 `shouldBe` n1 + n2
+  describe "Works on Ptrs" $ do
+    it "addPtr" $ property $ \int num -> let ptr = intToPtr int
+                                          in addPtr ptr num `shouldBe` (ptr `plusPtr` num)
+    it "swap returns a tuple properly" $ property $ \n1 n2 -> let p1 = intToPtr n1
+                                                                  p2 = intToPtr n2
+                                                               in swapPtrs p1 p2 `shouldBe` (p2, p1)
   describe "Works on mixed types" $
     it "timesTwoEverything" $ property $ \d n f w -> timesTwoEverything d n f w `shouldBe` (d + d, n * 2, f + f, w * 2)
+
+intToPtr :: Int -> Ptr a
+intToPtr = intPtrToPtr . IntPtr
