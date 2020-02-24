@@ -89,11 +89,8 @@ unliftType = transformBi unliftTuple . transformBi unliftBaseTy
     unliftTuple (TupleT n) = UnboxedTupleT n
     unliftTuple x = x
 
--- This doesn't check if this is indeed a return type,
--- but since we are not going to support argument tuples (and we'll add a check about that later),
--- it should be fine.
 detectRetTuple :: Type -> Maybe Int
-detectRetTuple ty | [TupleT n] <- tuples = Just n
-                  | otherwise = Nothing
-  where
-    tuples = [ t | t@(TupleT _) <- universeBi ty]
+detectRetTuple (AppT (AppT ArrowT _) rhs) = detectRetTuple rhs
+detectRetTuple (AppT lhs _) = detectRetTuple lhs
+detectRetTuple (TupleT n) = Just n
+detectRetTuple _ = Nothing
