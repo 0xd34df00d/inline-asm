@@ -135,6 +135,7 @@ parseInTypes = space *> many parseType
       name <- lexeme $ parseWFirst letterChar <|> string "_"
       void $ lexeme $ string ":"
       ty <- lexeme $ parseWFirst upperChar
+      void $ takeWhileP Nothing (/= ')')
       void $ lexeme $ string ")"
       pure (AsmVarName name, AsmVarType ty)
 
