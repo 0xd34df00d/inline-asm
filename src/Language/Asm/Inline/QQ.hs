@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE FlexibleContexts, MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, MultiWayIf #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -15,6 +15,7 @@ import Data.Either.Combinators
 import Data.Foldable
 import Data.String
 import Data.Void
+import Foreign.Ptr
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
 import Language.Haskell.TH.Syntax
@@ -72,7 +73,7 @@ data VarTyCat = Integer | Other deriving (Eq, Ord, Show, Enum, Bounded)
 categorize :: AsmVarType -> Either String VarTyCat
 categorize (AsmVarType "Int") = pure Integer
 categorize (AsmVarType "Word") = pure Integer
-categorize (AsmVarType "IntPtr") = pure Integer
+categorize (AsmVarType "Ptr") = pure Integer
 categorize (AsmVarType "Float") = pure Other
 categorize (AsmVarType "Double") = pure Other
 categorize (AsmVarType s) = throwError $ "Unknown register type: " <> s
@@ -155,7 +156,8 @@ unreflectTy AsmQQType { .. } = do
        Left err -> error err
        Right argTyNames -> foldrM argFolder retTy argTyNames
   where
-    argFolder argName funAcc = [t| $(pure $ ConT argName) -> $(pure funAcc) |]
+    argFolder argName funAcc | argName == ''Ptr = [t| Ptr () -> $(pure funAcc) |]
+                             | otherwise = [t| $(pure $ ConT argName) -> $(pure funAcc) |]
 
 unreflectRetTy :: [(AsmVarName, AsmVarType)] -> Q Type
 unreflectRetTy [] = [t| () |]
@@ -163,10 +165,12 @@ unreflectRetTy rets = do
   maybeRetTyNames <- lookupTyNames rets
   case maybeRetTyNames of
        Left err -> error err
-       Right [tyName] -> pure $ ConT tyName
+       Right [tyName] -> if | tyName == ''Ptr -> [t| Ptr () |]
+                            | otherwise -> pure $ ConT tyName
        Right retNames -> pure $ foldl retFolder (TupleT $ length retNames) retNames
   where
-    retFolder tupAcc ret = tupAcc `AppT` ConT ret
+    retFolder tupAcc ret | ret == ''Ptr = tupAcc `AppT` (ConT ret `AppT` TupleT 0)
+                         | otherwise = tupAcc `AppT` ConT ret
 
 lookupTyNames :: [(AsmVarName, AsmVarType)] -> Q (Either String [Name])
 lookupTyNames = fmap sequence . mapM f
