@@ -96,3 +96,6 @@ detectRetTuple (AppT (AppT ArrowT _) rhs) = detectRetTuple rhs
 detectRetTuple (AppT lhs _) = detectRetTuple lhs
 detectRetTuple (TupleT n) = Just n
 detectRetTuple _ = Nothing
+
+getArgs :: Type -> [Type]
+getArgs ty = [ argTy | AppT ArrowT argTy <- universeBi ty ]
