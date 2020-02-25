@@ -9,6 +9,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Internal as BS
 import Control.Monad
 import Data.Generics.Uniplate.Data
+import Data.List
 import Foreign.Ptr
 import Foreign.ForeignPtr.Unsafe
 import GHC.Prim
@@ -46,12 +47,19 @@ instance AsmArg (Ptr a) 'AddrRep Addr# where
   unbox (Ptr p) = p
   rebox = Ptr
 
+replace :: String -> String -> String -> String
+replace what with = go
+  where
+    go [] = []
+    go str@(s:ss) | what `isPrefixOf` str = with <> go (drop (length what) str)
+                  | otherwise = s : go ss
+
 defineAsmFun :: AsmCode tyAnn code => String -> tyAnn -> code -> Q [Dec]
 defineAsmFun name tyAnn asmCode = do
   addForeignSource LangAsm $ unlines [ ".global " <> asmName
                                      , asmName <> ":"
-                                     , codeToString tyAnn asmCode
-                                     , "jmp *(%rbp)"
+                                     , replace "RET_HASK" retToHask $ codeToString tyAnn asmCode
+                                     , retToHask
                                      ]
   funTy <- toTypeQ tyAnn
   let importedName = mkName asmName
@@ -65,6 +73,7 @@ defineAsmFun name tyAnn asmCode = do
   where
     name' = mkName name
     asmName = name <> "_unlifted"
+    retToHask = "jmp *(%rbp)"
 
 getBSAddr :: BS.ByteString -> Ptr Word8
 getBSAddr bs = unsafeForeignPtrToPtr ptr `plusPtr` offset
