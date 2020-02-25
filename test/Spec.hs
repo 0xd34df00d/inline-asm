@@ -77,7 +77,7 @@ defineAsmFun "lastChar"
   [asm|
   test ${bs:len}, ${bs:len}
   jz is_zero
-  movzbl -1(${bs:ptr},${bs:len}), ${w}
+  movzbq -1(${bs:ptr},${bs:len}), ${w}
   RET_HASK
 is_zero:
   mov ${def}, ${w}
