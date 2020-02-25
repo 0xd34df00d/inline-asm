@@ -60,23 +60,27 @@ substituteArgs AsmQQType { .. } AsmQQCode { .. } = do
 newtype RegName = RegName { regName :: String } deriving (Show, IsString)
 
 computeRegisters :: [(AsmVarName, AsmVarType)] -> Either String [(AsmVarName, RegName)]
-computeRegisters vars = fst <$> foldM f ([], mempty) vars
+computeRegisters vars = fst <$> foldM handleType ([], mempty) vars
   where
-    f (regNames, regCounts) (name, ty) = do
-      cat <- categorize ty
-      let idx = M.findWithDefault 0 cat regCounts
+    handleType (regNames, regCounts) (name, ty) = do
+      cats <- categorize name ty
+      foldM handleCats (regNames, regCounts) cats
+
+    handleCats (regNames, regCounts) (name, cat) = do
       reg <- argIdxToReg cat idx
       pure ((name, reg) : regNames, M.insert cat (idx + 1) regCounts)
+      where
+        idx = M.findWithDefault 0 cat regCounts
 
 data VarTyCat = Integer | Other deriving (Eq, Ord, Show, Enum, Bounded)
 
-categorize :: AsmVarType -> Either String VarTyCat
-categorize (AsmVarType "Int") = pure Integer
-categorize (AsmVarType "Word") = pure Integer
-categorize (AsmVarType "Ptr") = pure Integer
-categorize (AsmVarType "Float") = pure Other
-categorize (AsmVarType "Double") = pure Other
-categorize (AsmVarType s) = throwError $ "Unknown register type: " <> s
+categorize :: AsmVarName -> AsmVarType -> Either String [(AsmVarName, VarTyCat)]
+categorize name (AsmVarType "Int") = pure [(name, Integer)]
+categorize name (AsmVarType "Word") = pure [(name, Integer)]
+categorize name (AsmVarType "Ptr") = pure [(name, Integer)]
+categorize name (AsmVarType "Float") = pure [(name, Other)]
+categorize name (AsmVarType "Double") = pure [(name, Other)]
+categorize _ (AsmVarType s) = throwError $ "Unknown register type: " <> s
 
 argIdxToReg :: VarTyCat -> Int -> Either String RegName
 argIdxToReg Integer 0 = pure "rbx"
