@@ -80,6 +80,7 @@ categorize name (AsmVarType "Word") = pure [(name, Integer)]
 categorize name (AsmVarType "Ptr") = pure [(name, Integer)]
 categorize name (AsmVarType "Float") = pure [(name, Other)]
 categorize name (AsmVarType "Double") = pure [(name, Other)]
+categorize name (AsmVarType "ByteString") = pure [(name <> ":ptr", Integer), (name <> ":len", Integer)]
 categorize _ (AsmVarType s) = throwError $ "Unknown register type: " <> s
 
 argIdxToReg :: VarTyCat -> Int -> Either String RegName

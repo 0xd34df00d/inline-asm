@@ -5,14 +5,19 @@
 
 module Language.Asm.Inline(defineAsmFun) where
 
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Internal as BS
 import Control.Monad
 import Data.Generics.Uniplate.Data
 import Foreign.Ptr
+import Foreign.ForeignPtr.Unsafe
 import GHC.Prim
 import GHC.Ptr
 import GHC.Types hiding (Type)
+import GHC.Word
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
+import System.IO.Unsafe
 
 import Language.Asm.Inline.AsmCode
 import Language.Asm.Inline.Util
@@ -61,10 +66,15 @@ defineAsmFun name tyAnn asmCode = do
     name' = mkName name
     asmName = name <> "_unlifted"
 
+getBSAddr :: BS.ByteString -> Ptr Word8
+getBSAddr bs = unsafeForeignPtrToPtr ptr `plusPtr` offset
+  where
+    (ptr, offset, _) = BS.toForeignPtr bs
+
 mkFunD :: String -> Name -> Type -> Q Dec
 mkFunD funName importedName funTy = do
   argNames <- replicateM (countArgs funTy) $ newName "arg"
-  funAppE <- foldM f (VarE importedName) argNames
+  funAppE <- foldM f (VarE importedName) $ zip (VarE <$> argNames) (getArgs funTy)
   body <- case detectRetTuple funTy of
                Nothing -> [e| rebox $(pure funAppE) |]
                Just n -> do
@@ -75,18 +85,29 @@ mkFunD funName importedName funTy = do
                     |]
   pure $ FunD (mkName funName) [Clause (VarP <$> argNames) (NormalB body) []]
   where
-    f acc argName = [e| $(pure acc) (unbox $(pure $ VarE argName)) |]
+    f acc (argName, argType) | argType == ConT ''BS.ByteString = [e| $(pure acc)
+                                                                            (unbox $ getBSAddr $(pure argName))
+                                                                            (unbox $ BS.length $(pure argName))
+                                                                   |]
+                             | otherwise = [e| $(pure acc) (unbox $(pure argName)) |]
 
 unliftType :: Type -> Type
-unliftType = transformBi unliftTuple . transformBi unliftBaseTy . transformBi unliftPtrs
+unliftType = transformBi unliftTuple
+           . transformBi unliftBaseTy
+           . transformBi unliftPtrs
+           . transformBi unliftBS
   where
     unliftBaseTy x | x == ''Word = ''Word#
                    | x == ''Int = ''Int#
                    | x == ''Double = ''Double#
                    | x == ''Float = ''Float#
                    | otherwise = x
+
     unliftPtrs (AppT (ConT name) _) | name == ''Ptr = ConT ''Addr#
     unliftPtrs x = x
+
+    unliftBS (AppT (AppT ArrowT (ConT bs)) rhs) | bs == ''BS.ByteString = unsafePerformIO $ runQ [t| Addr# -> Int# -> $(pure rhs) |]
+    unliftBS x = x
 
     unliftTuple (TupleT n) = UnboxedTupleT n
     unliftTuple x = x
