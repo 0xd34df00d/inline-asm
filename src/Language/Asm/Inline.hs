@@ -129,3 +129,6 @@ detectRetTuple _ = Nothing
 
 getArgs :: Type -> [Type]
 getArgs ty = [ argTy | AppT ArrowT argTy <- universeBi ty ]
+
+countArgs :: Type -> Int
+countArgs ty = length $ filter (== ArrowT) $ universeBi ty
