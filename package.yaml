@@ -54,4 +54,5 @@ tests:
     dependencies:
     - inline-asm
     - hspec
+    - hspec-core
     - QuickCheck

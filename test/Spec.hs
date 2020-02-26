@@ -5,6 +5,7 @@ import qualified Data.ByteString.Char8 as BS
 import Data.ByteString(ByteString)
 import Foreign.Ptr
 import Test.Hspec
+import Test.Hspec.Core.QuickCheck
 import Test.QuickCheck
 
 import Language.Asm.Inline
@@ -22,6 +23,13 @@ defineAsmFun "timesTwoIntQQ"
 defineAsmFun "plusIntQQ"
   [asmTy| (a : Int) (b : Int) | (_ : Int) |]
   [asm| add ${b}, ${a} |]
+
+defineAsmFun "plus3IntQQ"
+  [asmTy| (a : Int) (b : Int) (c : Int) | (_ : Int) |]
+  [asm|
+  add ${b}, ${a}
+  add ${c}, ${a}
+  |]
 
 defineAsmFun "swap2p1QQ"
   [asmTy| (a : Int) (b : Int) | (a : Int) (b : Int) |]
@@ -85,7 +93,7 @@ is_zero:
 
 
 main :: IO ()
-main = hspec $ do
+main = hspec $ modifyMaxSuccess (const 1000) $ do
   describe "Works with Ints (the non-QQ version)" $ do
     it "timesTwo" $ property $ \num -> timesTwoInt num `shouldBe` num * 2
     it "plusInt" $ property $ \n1 n2 -> plusInt n1 n2 `shouldBe` n1 + n2
@@ -93,6 +101,7 @@ main = hspec $ do
   describe "Works on Ints" $ do
     it "timesTwo" $ property $ \num -> timesTwoIntQQ num `shouldBe` num * 2
     it "plusInt" $ property $ \n1 n2 -> plusIntQQ n1 n2 `shouldBe` n1 + n2
+    it "plus3Int" $ property $ \n1 n2 n3 -> plus3IntQQ n1 n2 n3 `shouldBe` n1 + n2 + n3
     it "swap returns a tuple properly" $ property $ \n1 n2 -> swap2p1QQ n1 n2 `shouldBe` (n2, n1 + 1)
   describe "Works on Floats" $ do
     it "timesTwo" $ property $ \num -> timesTwoFloatQQ num `shouldBe` num * 2
