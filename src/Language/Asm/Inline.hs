@@ -33,6 +33,10 @@ instance AsmArg Word 'WordRep Word# where
   unbox (W# w) = w
   rebox = W#
 
+instance AsmArg Word8 'WordRep Word# where
+  unbox (W8# w) = w
+  rebox = W8#
+
 instance AsmArg Double 'DoubleRep Double# where
   unbox (D# d) = d
   rebox = D#
@@ -100,6 +104,7 @@ unliftType = transformBi unliftTuple
            . transformBi unliftBS
   where
     unliftBaseTy x | x == ''Word = ''Word#
+                   | x == ''Word8 = ''Word#
                    | x == ''Int = ''Int#
                    | x == ''Double = ''Double#
                    | x == ''Float = ''Float#

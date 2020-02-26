@@ -77,6 +77,7 @@ data VarTyCat = Integer | Other deriving (Eq, Ord, Show, Enum, Bounded)
 categorize :: AsmVarName -> AsmVarType -> Either String [(AsmVarName, VarTyCat)]
 categorize name (AsmVarType "Int") = pure [(name, Integer)]
 categorize name (AsmVarType "Word") = pure [(name, Integer)]
+categorize name (AsmVarType "Word8") = pure [(name, Integer)]
 categorize name (AsmVarType "Ptr") = pure [(name, Integer)]
 categorize name (AsmVarType "Float") = pure [(name, Other)]
 categorize name (AsmVarType "Double") = pure [(name, Other)]
