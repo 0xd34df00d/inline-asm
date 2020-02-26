@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
 {-# LANGUAGE GHCForeignImportPrim, UnliftedFFITypes, UnboxedTuples #-}
+{-# LANGUAGE ViewPatterns #-}
 
 import qualified Data.ByteString.Char8 as BS
 import Data.ByteString(ByteString)
@@ -92,6 +93,9 @@ is_zero:
   |]
 
 
+asBS :: ASCIIString -> BS.ByteString
+asBS (ASCIIString str) = BS8.pack str
+
 main :: IO ()
 main = hspec $ modifyMaxSuccess (const 1000) $ do
   describe "Works with Ints (the non-QQ version)" $ do
@@ -118,10 +122,9 @@ main = hspec $ modifyMaxSuccess (const 1000) $ do
   describe "Works on mixed types" $
     it "timesTwoEverything" $ property $ \d n f w -> timesTwoEverything d n f w `shouldBe` (d + d, n * 2, f + f, w * 2)
   describe "Works on ByteString" $
-    it "lastChar" $ property $ \(ASCIIString str) def -> let bs = BS.pack str
-                                                          in lastChar bs def `shouldBe` if BS.null bs
-                                                                                        then def
-                                                                                        else fromIntegral $ fromEnum $ BS.last bs
+    it "lastChar" $ property $ \(asBS -> bs) def -> lastChar bs def `shouldBe` if BS.null bs
+                                                                               then def
+                                                                               else fromIntegral $ fromEnum $ BS.last bs
 
 intToPtr :: Int -> Ptr a
 intToPtr = intPtrToPtr . IntPtr
