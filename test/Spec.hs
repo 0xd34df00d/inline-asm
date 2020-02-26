@@ -88,18 +88,18 @@ main :: IO ()
 main = hspec $ do
   describe "Works with Ints (the non-QQ version)" $ do
     it "timesTwo" $ property $ \num -> timesTwoInt num `shouldBe` num * 2
-    it "plusWord" $ property $ \n1 n2 -> plusInt n1 n2 `shouldBe` n1 + n2
+    it "plusInt" $ property $ \n1 n2 -> plusInt n1 n2 `shouldBe` n1 + n2
     it "swap returns a tuple properly" $ property $ \n1 n2 -> swapInts n1 n2 `shouldBe` (n2, n1)
   describe "Works on Ints" $ do
     it "timesTwo" $ property $ \num -> timesTwoIntQQ num `shouldBe` num * 2
-    it "plusWord" $ property $ \n1 n2 -> plusIntQQ n1 n2 `shouldBe` n1 + n2
+    it "plusInt" $ property $ \n1 n2 -> plusIntQQ n1 n2 `shouldBe` n1 + n2
     it "swap returns a tuple properly" $ property $ \n1 n2 -> swap2p1QQ n1 n2 `shouldBe` (n2, n1 + 1)
   describe "Works on Floats" $ do
     it "timesTwo" $ property $ \num -> timesTwoFloatQQ num `shouldBe` num * 2
-    it "plusWord" $ property $ \n1 n2 -> plusFloatQQ n1 n2 `shouldBe` n1 + n2
+    it "plusFloat" $ property $ \n1 n2 -> plusFloatQQ n1 n2 `shouldBe` n1 + n2
   describe "Works on Doubles" $ do
     it "timesTwo" $ property $ \num -> timesTwoDoubleQQ num `shouldBe` num * 2
-    it "plusWord" $ property $ \n1 n2 -> plusDoubleQQ n1 n2 `shouldBe` n1 + n2
+    it "plusDouble" $ property $ \n1 n2 -> plusDoubleQQ n1 n2 `shouldBe` n1 + n2
   describe "Works on Ptrs" $ do
     it "addPtr" $ property $ \int num -> let ptr = intToPtr int
                                           in addPtr ptr num `shouldBe` (ptr `plusPtr` num)
