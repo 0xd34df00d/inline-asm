@@ -11,3 +11,8 @@ getBSAddr :: BS.ByteString -> Ptr Word8
 getBSAddr bs = unsafeForeignPtrToPtr ptr `plusPtr` offset
   where
     (ptr, offset, _) = BS.toForeignPtr bs
+
+withBS :: BS.ByteString -> IO a -> IO a
+withBS str action = withForeignPtr ptr $ const action
+  where
+    (ptr, _, _) = BS.toForeignPtr str
