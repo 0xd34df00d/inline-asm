@@ -2,15 +2,18 @@
 {-# LANGUAGE GHCForeignImportPrim, UnliftedFFITypes, UnboxedTuples #-}
 {-# LANGUAGE ViewPatterns #-}
 
-import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS8
 import Data.ByteString(ByteString)
 import Foreign.Ptr
+import GHC.Word
 import Test.Hspec
 import Test.Hspec.Core.QuickCheck
 import Test.QuickCheck
 
 import Language.Asm.Inline
 import Language.Asm.Inline.QQ
+import Language.Asm.Inline.Util
 
 defineAsmFun "timesTwoInt" [t| Int -> Int |] "add %rbx, %rbx"
 defineAsmFun "plusInt" [t| Int -> Int -> Int |] "add %r14, %rbx"
@@ -92,6 +95,43 @@ is_zero:
   mov ${def}, ${w}
   |]
 
+defineAsmFun "countCharsSSE42"
+  [asmTy| (ch : Word8) (ptr : Ptr Word8) (len : Int) | (cnt : Int) |]
+  [asm|
+  vmovd ${ch}, %xmm7
+  vpxor %xmm0, %xmm0, %xmm0
+  vpshufb %xmm0, %xmm7, %xmm7
+
+  movl $16, %eax
+  movl $16, %edx
+
+  xor ${cnt}, ${cnt}
+loop:
+  vmovdqa (${ptr}), %xmm0
+  vpcmpestrm $10, %xmm7, %xmm0
+  vmovq %xmm0, %r8
+  popcntq %r8, %r8
+  addq %r8, ${cnt}
+
+  add $16, ${ptr}
+  sub $16, ${len}
+  jnz loop
+  |]
+
+countChars :: Word8 -> BS.ByteString -> Int
+countChars ch bs | BS.length bs <= 128 = BS.count ch bs
+                 | otherwise = BS.count ch (substr 0 startLen bs)
+                             + countCharsSSE42 ch (castPtr alignedPtr) alignedLen
+                             + BS.count ch (substr endPos endLen bs)
+  where
+    basePtr = getBSAddr bs
+    alignedPtr = alignPtr basePtr alignment
+    startLen = alignedPtr `minusPtr` basePtr
+    (alignedLen, endLen) = let remLen = BS.length bs - startLen
+                               remainder = remLen `rem` alignment
+                            in (remLen - remainder, remainder)
+    endPos = startLen + alignedLen
+    alignment = 64
 
 asBS :: ASCIIString -> BS.ByteString
 asBS (ASCIIString str) = BS8.pack str
@@ -125,6 +165,13 @@ main = hspec $ modifyMaxSuccess (const 1000) $ do
     it "lastChar" $ property $ \(asBS -> bs) def -> lastChar bs def `shouldBe` if BS.null bs
                                                                                then def
                                                                                else fromIntegral $ fromEnum $ BS.last bs
+  describe "More examples" $
+    it "counting chars" $ property $ \(InfiniteList infList _) len needle ->
+        let bs = BS.pack $ take (len * 100) infList
+         in countChars needle bs `shouldBe` BS.count needle bs
 
 intToPtr :: Int -> Ptr a
 intToPtr = intPtrToPtr . IntPtr
+
+substr :: Int -> Int -> BS.ByteString -> BS.ByteString
+substr start len = BS.take len . BS.drop start
