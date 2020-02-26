@@ -6,12 +6,10 @@
 module Language.Asm.Inline(defineAsmFun) where
 
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Internal as BS
 import Control.Monad
 import Data.Generics.Uniplate.Data
 import Data.List
 import Foreign.Ptr
-import Foreign.ForeignPtr.Unsafe
 import GHC.Prim
 import GHC.Ptr
 import GHC.Types hiding (Type)
@@ -74,11 +72,6 @@ defineAsmFun name tyAnn asmCode = do
     name' = mkName name
     asmName = name <> "_unlifted"
     retToHask = "jmp *(%rbp)"
-
-getBSAddr :: BS.ByteString -> Ptr Word8
-getBSAddr bs = unsafeForeignPtrToPtr ptr `plusPtr` offset
-  where
-    (ptr, offset, _) = BS.toForeignPtr bs
 
 mkFunD :: String -> Name -> Type -> Q Dec
 mkFunD funName importedName funTy = do
