@@ -98,6 +98,11 @@ is_zero:
 defineAsmFun "countCharsSSE42"
   [asmTy| (ch : Word8) (ptr : Ptr Word8) (len : Int) | (cnt : Int) |]
   [asm|
+  push %r12
+  push %r13
+  push %r14
+  push %r15
+
   vmovd ${ch}, %xmm7
   vpxor %xmm0, %xmm0, %xmm0
   vpshufb %xmm0, %xmm7, %xmm7
@@ -122,6 +127,11 @@ loop:
   add $16, ${ptr}
   dec ${len}
   jnz loop
+
+  pop %r15
+  pop %r14
+  pop %r13
+  pop %r12
   |]
 
 countChars :: Word8 -> BS.ByteString -> Int
