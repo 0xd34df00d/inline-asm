@@ -37,7 +37,7 @@ asm = expQQ asmQE
 asmQE :: String -> Q Exp
 asmQE p = [e| AsmQQCode p |]
 
-newtype AsmQQCode = AsmQQCode { asmCode :: String }
+newtype AsmQQCode = AsmQQCode { asmCode :: String } deriving (Semigroup)
 
 substituteArgs :: AsmQQType -> AsmQQCode -> Either String String
 substituteArgs AsmQQType { .. } AsmQQCode { .. } = do
