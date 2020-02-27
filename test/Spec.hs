@@ -102,6 +102,12 @@ defineAsmFun "countCharsSSE42"
   vpxor %xmm0, %xmm0, %xmm0
   vpshufb %xmm0, %xmm7, %xmm7
 
+  xor %rdx, %rdx
+  mov ${len}, %rax
+  mov $16, %r8
+  div %r8
+  mov %rax, ${len}
+
   mov $16, %eax
   mov $16, %edx
 
@@ -114,7 +120,7 @@ loop:
   add %r8, ${cnt}
 
   add $16, ${ptr}
-  sub $16, ${len}
+  dec ${len}
   jnz loop
   |]
 
