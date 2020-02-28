@@ -37,7 +37,14 @@ asm = expQQ asmQE
 asmQE :: String -> Q Exp
 asmQE p = [e| AsmQQCode p |]
 
-newtype AsmQQCode = AsmQQCode { asmCode :: String } deriving (Semigroup)
+newtype AsmQQCode = AsmQQCode { asmCode :: String }
+
+instance Semigroup AsmQQCode where
+  c1 <> c2 = AsmQQCode $ asmCode c1 <> "\n" <> asmCode c2
+
+instance Monoid AsmQQCode where
+  mempty = AsmQQCode ""
+
 
 substitute :: (String -> Either String String) -> AsmQQCode -> Either String String
 substitute subst AsmQQCode { .. } = go asmCode
