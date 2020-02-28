@@ -14,11 +14,13 @@ module Language.Asm.Inline.QQ
 ) where
 
 import qualified Data.Map as M
+import Control.Monad.Combinators.Expr as CE
 import Control.Monad.Except
 import Data.Bifunctor
 import Data.Char
 import Data.Either.Combinators
 import Data.Foldable
+import Data.Functor
 import Data.String
 import Data.Void
 import Foreign.Ptr
@@ -51,13 +53,31 @@ instance Semigroup AsmQQCode where
 instance Monoid AsmQQCode where
   mempty = AsmQQCode ""
 
+
+parseExpr :: String -> Int -> String -> Either String Int
+parseExpr var num inputStr = first showParseError $ runParser (expr <* eof) "" inputStr
+  where
+    expr = makeExprParser term table <?> "expr"
+    term = parens expr <|> ML.signed lexSpace (string "0x" *> ML.hexadecimal <|> ML.decimal) <|> (lexeme (string var) $> num) <?> "term"
+    table = [ [ binary "*" (*) ]
+            , [ binary "+" (+)
+              , binary "-" (-)
+              ]
+            ]
+    binary name fun = CE.InfixL $ symbol name $> fun
+    symbol = ML.symbol lexSpace
+    parens = between (symbol "(") (symbol ")")
+    lexeme = ML.lexeme lexSpace
+    lexSpace = ML.space space1 empty empty
+
 unroll :: String -> [Int] -> AsmQQCode -> AsmQQCode
 unroll var ints code = case mapM (\n -> substitute (sub n) code) ints of
                             Left err -> error err
                             Right codes -> mconcat $ AsmQQCode <$> codes
   where
-    sub n str | var == str = pure $ show n
-              | otherwise = pure str
+    sub n str = case parseExpr var n str of
+                     Right res -> pure $ show res
+                     Left _ -> pure $ "${" <> str <> "}"
 
 substitute :: (String -> Either String String) -> AsmQQCode -> Either String String
 substitute subst AsmQQCode { .. } = go asmCode
@@ -153,8 +173,9 @@ parseAsmTyQQ str = do
   args <- first showParseError $ runParser (parseInTypes <* eof) "" inputStr
   rets <- first showParseError $ runParser (parseInTypes <* eof) "" outputStr
   pure AsmQQType { .. }
-  where
-    showParseError = errorBundlePretty :: ParseErrorBundle String Void -> String
+
+showParseError :: ParseErrorBundle String Void -> String
+showParseError = errorBundlePretty
 
 parseInTypes :: forall m e. MonadParsec e String m => m [(AsmVarName, AsmVarType)]
 parseInTypes = space *> many parseType

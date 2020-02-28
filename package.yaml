@@ -23,6 +23,7 @@ dependencies:
 - ghc-prim
 - megaparsec
 - mtl
+- parser-combinators
 - template-haskell >= 2.15.0.0
 - uniplate
 
