@@ -39,23 +39,25 @@ asmQE p = [e| AsmQQCode p |]
 
 newtype AsmQQCode = AsmQQCode { asmCode :: String } deriving (Semigroup)
 
+substitute :: (String -> Either String String) -> AsmQQCode -> Either String String
+substitute subst AsmQQCode { .. } = go asmCode
+  where
+    go ('$' : '{' : rest)
+      | (argStr, '}' : rest') <- break (== '}') rest
+      , not $ null argStr = (<>) <$> subst (trim argStr) <*> go rest'
+      | otherwise = throwError $ "Unable to parse argument: " <> take 20 rest <> "..."
+    go (x : xs) = (x :) <$> go xs
+    go [] = pure []
+
 substituteArgs :: AsmQQType -> AsmQQCode -> Either String String
-substituteArgs AsmQQType { .. } AsmQQCode { .. } = do
+substituteArgs AsmQQType { .. } asmCode = do
   argRegs <- computeRegisters args
   retRegs <- computeRegisters rets
-  go' argRegs retRegs asmCode
-  where
-    go' argRegs retRegs = go
-      where
-        go ('$' : '{' : rest)
-          | (argStr, '}' : rest') <- break (== '}') rest
-          , not $ null argStr = do
-            let arg = AsmVarName $ trim argStr
-            RegName reg <- maybeToRight ("Unknown argument: `" <> show arg <> "`") $ msum [lookup arg argRegs, lookup arg retRegs]
-            (('%' : reg) <>) <$> go rest'
-          | otherwise = throwError $ "Unable to parse argument: " <> take 20 rest <> "..."
-        go (x : xs) = (x :) <$> go xs
-        go [] = pure []
+  let subst varName = do
+        let var = AsmVarName varName
+        RegName reg <- maybeToRight ("Unknown argument: `" <> show var <> "`") $ msum [lookup var argRegs, lookup var retRegs]
+        pure $ '%' : reg
+  substitute subst asmCode
 
 newtype RegName = RegName { regName :: String } deriving (Show, IsString)
 
