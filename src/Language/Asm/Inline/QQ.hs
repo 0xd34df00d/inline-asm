@@ -51,8 +51,8 @@ instance Semigroup AsmQQCode where
 instance Monoid AsmQQCode where
   mempty = AsmQQCode ""
 
-unroll :: AsmQQCode -> String -> [Int] -> AsmQQCode
-unroll code var ints = case mapM (\n -> substitute (sub n) code) ints of
+unroll :: String -> [Int] -> AsmQQCode -> AsmQQCode
+unroll var ints code = case mapM (\n -> substitute (sub n) code) ints of
                             Left err -> error err
                             Right codes -> mconcat $ AsmQQCode <$> codes
   where

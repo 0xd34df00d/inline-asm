@@ -97,15 +97,16 @@ is_zero:
 
 defineAsmFun "countCharsSSE42"
   [asmTy| (ch : Word8) (ptr : Ptr Word8) (len : Int) | (cnt : Int) |] $
-  unroll [asm|push %r${i}|] "i" [12..15] <>
+  unroll "i" [12..15]
   [asm|
-  vmovd ${ch}, %xmm7
-  vpxor %xmm0, %xmm0, %xmm0
-  vpshufb %xmm0, %xmm7, %xmm7
+  push %r${i}|] <> [asm|
+  vmovd ${ch}, %xmm15
+  vpxor %xmm1, %xmm1, %xmm1
+  vpshufb %xmm1, %xmm15, %xmm15
 
   xor %rdx, %rdx
   mov ${len}, %rax
-  mov $16, %r8
+  mov $64, %r8
   div %r8
   mov %rax, ${len}
 
@@ -114,20 +115,40 @@ defineAsmFun "countCharsSSE42"
 
   xor ${cnt}, ${cnt}
 loop:
-  vmovdqa (${ptr}), %xmm0
-  vpcmpestrm $10, %xmm7, %xmm0
-  vmovq %xmm0, %r8
-  popcnt %r8, %r8
-  add %r8, ${cnt}
+  vmovdqa (${ptr}), %xmm1
+  vmovdqa 0x10(${ptr}), %xmm2
+  vmovdqa 0x20(${ptr}), %xmm3
+  vmovdqa 0x30(${ptr}), %xmm4
 
-  add $16, ${ptr}
+  vpcmpestrm $10, %xmm15, %xmm1
+  vmovdqa %xmm0, %xmm1
+  vpcmpestrm $10, %xmm15, %xmm2
+  vmovdqa %xmm0, %xmm2
+  vpcmpestrm $10, %xmm15, %xmm3
+  vmovdqa %xmm0, %xmm3
+  vpcmpestrm $10, %xmm15, %xmm4
+  vmovdqa %xmm0, %xmm4
+
+  vmovq %xmm1, %r8
+  vmovq %xmm2, %r9
+  vmovq %xmm3, %r10
+  vmovq %xmm4, %r11
+  popcnt %r8, %r8
+  popcnt %r9, %r9
+  popcnt %r10, %r10
+  popcnt %r11, %r11
+  add %r8, ${cnt}
+  add %r9, ${cnt}
+  add %r10, ${cnt}
+  add %r11, ${cnt}
+
+  add $64, ${ptr}
   dec ${len}
-  jnz loop
-  |] <>
-  unroll [asm|pop %r${i}|] "i" [15,14..12]
+  jnz loop |] <> unroll "i" [15,14..12] [asm|
+  pop %r${i} |]
 
 countChars :: Word8 -> BS.ByteString -> Int
-countChars ch bs | BS.length bs <= 128 = BS.count ch bs
+countChars ch bs | BS.length bs <= 256 = BS.count ch bs
                  | otherwise = BS.count ch (substr 0 startLen bs)
                              + countCharsSSE42 ch (castPtr alignedPtr) alignedLen
                              + BS.count ch (substr endPos endLen bs)
