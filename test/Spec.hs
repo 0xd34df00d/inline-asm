@@ -101,8 +101,8 @@ defineAsmFun "countCharsSSE42"
   [asm|
   push %r${i}|] <> [asm|
   vmovd ${ch}, %xmm15
-  vpxor %xmm1, %xmm1, %xmm1
-  vpshufb %xmm1, %xmm15, %xmm15
+  vpxor %xmm0, %xmm0, %xmm0
+  vpshufb %xmm0, %xmm15, %xmm15
 
   xor %rdx, %rdx
   mov ${len}, %rax
@@ -114,34 +114,21 @@ defineAsmFun "countCharsSSE42"
   mov $16, %edx
 
   xor ${cnt}, ${cnt}
-loop:
-  vmovdqa (${ptr}), %xmm1
-  vmovdqa 0x10(${ptr}), %xmm2
-  vmovdqa 0x20(${ptr}), %xmm3
-  vmovdqa 0x30(${ptr}), %xmm4
-
-  vpcmpestrm $10, %xmm15, %xmm1
-  vmovdqa %xmm0, %xmm1
-  vpcmpestrm $10, %xmm15, %xmm2
-  vmovdqa %xmm0, %xmm2
-  vpcmpestrm $10, %xmm15, %xmm3
-  vmovdqa %xmm0, %xmm3
-  vpcmpestrm $10, %xmm15, %xmm4
-  vmovdqa %xmm0, %xmm4
-
-  vmovq %xmm1, %r8
-  vmovq %xmm2, %r9
-  vmovq %xmm3, %r10
-  vmovq %xmm4, %r11
-  popcnt %r8, %r8
-  popcnt %r9, %r9
-  popcnt %r10, %r10
-  popcnt %r11, %r11
-  add %r8, ${cnt}
-  add %r9, ${cnt}
-  add %r10, ${cnt}
-  add %r11, ${cnt}
-
+loop: |] <> unrolls "i" [1..4] [
+  [asm|
+  vmovdqa ${(i - 1) * 0x10}(${ptr}), %xmm${i}
+  |], [asm|
+  vpcmpestrm $10, %xmm15, %xmm${i}
+  vmovdqa %xmm0, %xmm${i}
+  |], [asm|
+  vmovq %xmm${i}, %r${i + 7}
+  |], [asm|
+  popcnt %r${i + 7}, %r${i + 7}
+  |], [asm|
+  add %r${i + 7}, ${cnt}
+  |]
+  ] <>
+  [asm|
   add $64, ${ptr}
   dec ${len}
   jnz loop |] <> unroll "i" [15,14..12] [asm|
