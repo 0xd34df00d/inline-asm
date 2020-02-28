@@ -104,15 +104,17 @@ defineAsmFun "countCharsSSE42"
   vpxor %xmm0, %xmm0, %xmm0
   vpshufb %xmm0, %xmm15, %xmm15
 
-  shr $6, ${len}
+  shr $7, ${len}
 
   mov $16, %eax
   mov $16, %edx
 
   xor ${cnt}, ${cnt}
-loop: |] <> unrolls "i" [1..4] [
+
+  mov ${ptr}, %rdi
+loop: |] <> unrolls "i" [1..8] [
   [asm|
-  vmovdqa ${(i - 1) * 0x10}(${ptr}), %xmm${i}
+  vmovdqa ${(i - 1) * 0x10}(%rdi), %xmm${i}
   |], [asm|
   vpcmpestrm $10, %xmm15, %xmm${i}
   vmovdqa %xmm0, %xmm${i}
@@ -125,9 +127,9 @@ loop: |] <> unrolls "i" [1..4] [
   |]
   ] <>
   [asm|
-  add $64, ${ptr}
+  add $128, %rdi
   dec ${len}
-  jnz loop |] <> unroll "i" [15,14..12] [asm|
+  jnz loop|] <> unroll "i" [15,14..12] [asm|
   pop %r${i} |]
 
 countChars :: Word8 -> BS.ByteString -> Int
@@ -143,7 +145,7 @@ countChars ch bs | BS.length bs <= 256 = BS.count ch bs
                                remainder = remLen `rem` alignment
                             in (remLen - remainder, remainder)
     endPos = startLen + alignedLen
-    alignment = 64
+    alignment = 128
 
 asBS :: ASCIIString -> BS.ByteString
 asBS (ASCIIString str) = BS8.pack str
