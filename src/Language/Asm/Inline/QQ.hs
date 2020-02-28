@@ -37,7 +37,7 @@ import Language.Asm.Inline.AsmCode
 instance AsmCode AsmQQType AsmQQCode where
   codeToString ty code = case substituteArgs ty code of
                               Left e -> error e
-                              Right s -> s
+                              Right s -> asmCode s
   toTypeQ = unreflectTy
 
 asm :: QuasiQuoter
@@ -74,7 +74,7 @@ parseExpr var num inputStr = first showParseError $ runParser (expr <* eof) "" i
 unroll :: String -> [Int] -> AsmQQCode -> AsmQQCode
 unroll var ints code = case mapM (\n -> substitute (sub n) code) ints of
                             Left err -> error err
-                            Right codes -> mconcat $ AsmQQCode <$> codes
+                            Right codes -> mconcat codes
   where
     sub n str = case parseExpr var n str of
                      Right res -> pure $ show res
@@ -83,8 +83,8 @@ unroll var ints code = case mapM (\n -> substitute (sub n) code) ints of
 unrolls :: String -> [Int] -> [AsmQQCode] -> AsmQQCode
 unrolls var ints = foldMap $ unroll var ints
 
-substitute :: (String -> Either String String) -> AsmQQCode -> Either String String
-substitute subst AsmQQCode { .. } = go asmCode
+substitute :: (String -> Either String String) -> AsmQQCode -> Either String AsmQQCode
+substitute subst AsmQQCode { .. } = AsmQQCode <$> go asmCode
   where
     go ('$' : '{' : rest)
       | (argStr, '}' : rest') <- break (== '}') rest
@@ -93,7 +93,7 @@ substitute subst AsmQQCode { .. } = go asmCode
     go (x : xs) = (x :) <$> go xs
     go [] = pure []
 
-substituteArgs :: AsmQQType -> AsmQQCode -> Either String String
+substituteArgs :: AsmQQType -> AsmQQCode -> Either String AsmQQCode
 substituteArgs AsmQQType { .. } asmCode = do
   argRegs <- computeRegisters args
   retRegs <- computeRegisters rets
