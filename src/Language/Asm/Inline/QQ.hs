@@ -11,6 +11,7 @@ module Language.Asm.Inline.QQ
 
 , substitute
 , unroll
+, unrolls
 ) where
 
 import qualified Data.Map as M
@@ -78,6 +79,9 @@ unroll var ints code = case mapM (\n -> substitute (sub n) code) ints of
     sub n str = case parseExpr var n str of
                      Right res -> pure $ show res
                      Left _ -> pure $ "${" <> str <> "}"
+
+unrolls :: String -> [Int] -> [AsmQQCode] -> AsmQQCode
+unrolls var ints = foldMap $ unroll var ints
 
 substitute :: (String -> Either String String) -> AsmQQCode -> Either String String
 substitute subst AsmQQCode { .. } = go asmCode
