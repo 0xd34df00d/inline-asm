@@ -5,7 +5,13 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Language.Asm.Inline.QQ(asm, asmTy) where
+module Language.Asm.Inline.QQ
+( asm
+, asmTy
+
+, substitute
+, unroll
+) where
 
 import qualified Data.Map as M
 import Control.Monad.Except
@@ -45,6 +51,13 @@ instance Semigroup AsmQQCode where
 instance Monoid AsmQQCode where
   mempty = AsmQQCode ""
 
+unroll :: AsmQQCode -> String -> [Int] -> AsmQQCode
+unroll code var ints = case mapM (\n -> substitute (sub n) code) ints of
+                            Left err -> error err
+                            Right codes -> mconcat $ AsmQQCode <$> codes
+  where
+    sub n str | var == str = pure $ show n
+              | otherwise = pure str
 
 substitute :: (String -> Either String String) -> AsmQQCode -> Either String String
 substitute subst AsmQQCode { .. } = go asmCode
