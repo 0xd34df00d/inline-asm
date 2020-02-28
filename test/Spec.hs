@@ -104,11 +104,7 @@ defineAsmFun "countCharsSSE42"
   vpxor %xmm0, %xmm0, %xmm0
   vpshufb %xmm0, %xmm15, %xmm15
 
-  xor %rdx, %rdx
-  mov ${len}, %rax
-  mov $64, %r8
-  div %r8
-  mov %rax, ${len}
+  shr $6, ${len}
 
   mov $16, %eax
   mov $16, %edx
