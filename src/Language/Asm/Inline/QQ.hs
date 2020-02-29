@@ -167,8 +167,8 @@ asmTyQE str = case parseAsmTyQQ str of
                    Left err -> error err
                    Right parsed -> [e| parsed |]
 
-newtype AsmVarName = AsmVarName { varName :: String } deriving (Show, Eq, Lift, Semigroup, IsString)
-newtype AsmVarType = AsmVarType { varType :: String } deriving (Show, Eq, Lift)
+newtype AsmVarName = AsmVarName { varName :: String } deriving (Show, Eq, Ord, Lift, Semigroup, IsString)
+newtype AsmVarType = AsmVarType { varType :: String } deriving (Show, Eq, Ord, Lift)
 
 data AsmQQType = AsmQQType
  { args :: [(AsmVarName, AsmVarType)]
