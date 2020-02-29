@@ -18,6 +18,7 @@ import qualified Data.Map as M
 import Control.Applicative(ZipList(..))
 import Control.Monad.Combinators.Expr as CE
 import Control.Monad.Except
+import Control.Monad.State.Strict
 import Data.Bifunctor
 import Data.Char
 import Data.Either.Combinators
@@ -100,9 +101,11 @@ substituteArgs AsmQQType { .. } asmCode = do
   retRegs <- computeRegisters rets
   let subst varName = do
         let var = AsmVarName varName
-        RegName reg <- maybeToRight ("Unknown argument: `" <> show var <> "`") $ msum [lookup var argRegs, lookup var retRegs]
+        maybeReg <- gets $ \(argRegs, retRegs) -> msum [lookup var argRegs, lookup var retRegs]
+        RegName reg <- liftEither $ maybeToRight ("Unknown argument: `" <> show var <> "`") maybeReg
         pure $ '%' : reg
-  join $ substitute subst asmCode
+  res <- substitute subst asmCode
+  evalStateT res (argRegs, retRegs)
 
 newtype RegName = RegName { regName :: String } deriving (Show, IsString)
 
