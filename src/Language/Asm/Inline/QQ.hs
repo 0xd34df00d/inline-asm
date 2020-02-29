@@ -15,6 +15,7 @@ module Language.Asm.Inline.QQ
 ) where
 
 import qualified Data.Map as M
+import Control.Applicative(ZipList(..))
 import Control.Monad.Combinators.Expr as CE
 import Control.Monad.Except
 import Data.Bifunctor
@@ -55,8 +56,8 @@ instance Monoid AsmQQCode where
   mempty = AsmQQCode ""
 
 
-parseExpr :: String -> Int -> String -> Either String Int
-parseExpr var num inputStr = first showParseError $ runParser (expr <* eof) "" inputStr
+parseExpr :: MonadError String m => String -> Int -> String -> m Int
+parseExpr var num inputStr = liftEither $ first showParseError $ runParser (expr <* eof) "" inputStr
   where
     expr = makeExprParser term table <?> "expr"
     term = parens expr <|> ML.signed lexSpace (string "0x" *> ML.hexadecimal <|> ML.decimal) <|> (lexeme (string var) $> num) <?> "term"
@@ -72,26 +73,26 @@ parseExpr var num inputStr = first showParseError $ runParser (expr <* eof) "" i
     lexSpace = ML.space space1 empty empty
 
 unroll :: String -> [Int] -> AsmQQCode -> AsmQQCode
-unroll var ints code = case mapM (\n -> substitute (sub n) code) ints of
+unroll var ints code = case substitute sub code of
                             Left err -> error err
-                            Right codes -> mconcat codes
+                            Right codes -> mconcat $ getZipList codes
   where
-    sub n str = case parseExpr var n str of
-                     Right res -> pure $ show res
-                     Left _ -> pure $ "${" <> str <> "}"
+    sub str = case traverse (\n -> parseExpr var n str) ints of
+                   Right results -> show <$> ZipList results
+                   Left _ -> pure $ "${" <> str <> "}"
 
 unrolls :: String -> [Int] -> [AsmQQCode] -> AsmQQCode
 unrolls var ints = foldMap $ unroll var ints
 
-substitute :: (String -> Either String String) -> AsmQQCode -> Either String AsmQQCode
-substitute subst AsmQQCode { .. } = AsmQQCode <$> go asmCode
+substitute :: Applicative f => (String -> f String) -> AsmQQCode -> Either String (f AsmQQCode)
+substitute subst AsmQQCode { .. } = fmap AsmQQCode <$> go asmCode
   where
     go ('$' : '{' : rest)
       | (argStr, '}' : rest') <- break (== '}') rest
-      , not $ null argStr = (<>) <$> subst (trim argStr) <*> go rest'
-      | otherwise = throwError $ "Unable to parse argument: " <> take 20 rest <> "..."
-    go (x : xs) = (x :) <$> go xs
-    go [] = pure []
+      , not $ null argStr = ((<>) <$> subst (trim argStr) <*>) <$> go rest'
+      | otherwise = Left $ "Unable to parse argument: " <> take 20 rest <> "..."
+    go (x : xs) = fmap (x :) <$> go xs
+    go [] = pure $ pure []
 
 substituteArgs :: AsmQQType -> AsmQQCode -> Either String AsmQQCode
 substituteArgs AsmQQType { .. } asmCode = do
@@ -101,7 +102,7 @@ substituteArgs AsmQQType { .. } asmCode = do
         let var = AsmVarName varName
         RegName reg <- maybeToRight ("Unknown argument: `" <> show var <> "`") $ msum [lookup var argRegs, lookup var retRegs]
         pure $ '%' : reg
-  substitute subst asmCode
+  join $ substitute subst asmCode
 
 newtype RegName = RegName { regName :: String } deriving (Show, IsString)
 
