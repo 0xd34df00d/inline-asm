@@ -58,17 +58,19 @@ instance Monoid AsmQQCode where
   mempty = AsmQQCode ""
 
 
-parseExpr :: MonadError String m => String -> Int -> String -> m Int
-parseExpr var num inputStr = liftEither $ first showParseError $ runParser (expr <* eof) "" inputStr
+parseExpr :: MonadError String m => String -> String -> m (Int -> Int)
+parseExpr var inputStr = liftEither $ first showParseError $ runParser (expr <* eof) "" inputStr
   where
     expr = makeExprParser term table <?> "expr"
-    term = parens expr <|> ML.signed lexSpace (string "0x" *> ML.hexadecimal <|> ML.decimal) <|> (lexeme (string var) $> num) <?> "term"
+    term = parens expr
+       <|> (ML.signed lexSpace (string "0x" *> ML.hexadecimal <|> ML.decimal) <&> const)
+       <|> (lexeme (string var) $> id)
     table = [ [ binary "*" (*) ]
             , [ binary "+" (+)
               , binary "-" (-)
               ]
             ]
-    binary name fun = CE.InfixL $ symbol name $> fun
+    binary name fun = CE.InfixL $ symbol name $> (\l r n -> l n `fun` r n)
     symbol = ML.symbol lexSpace
     parens = between (symbol "(") (symbol ")")
     lexeme = ML.lexeme lexSpace
@@ -79,8 +81,8 @@ unroll var ints code = case substitute sub code of
                             Left err -> error err
                             Right codes -> mconcat $ getZipList codes
   where
-    sub str = case traverse (\n -> parseExpr var n str) ints of
-                   Right results -> show <$> ZipList results
+    sub str = case parseExpr var str of
+                   Right fun -> ZipList $ show . fun <$> ints
                    Left _ -> pure $ "{" <> str <> "}"
 
 unrolls :: String -> [Int] -> [AsmQQCode] -> AsmQQCode
