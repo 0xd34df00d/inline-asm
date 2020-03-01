@@ -111,10 +111,10 @@ defineAsmFun "countCharsSSE42"
 
   xor ${cnt}, ${cnt}
 
-  mov ${ptr}, %rdi
+  ${move ptr rdi}
 loop: |] <> unrolls "i" [1..8] [
   [asm|
-  vmovdqa ${(i - 1) * 0x10}(%rdi), %xmm${i}
+  vmovdqa ${(i - 1) * 0x10}(${ptr}), %xmm${i}
   |], [asm|
   vpcmpestrm $10, %xmm15, %xmm${i}
   vmovdqa %xmm0, %xmm${i}
@@ -127,7 +127,7 @@ loop: |] <> unrolls "i" [1..8] [
   |]
   ] <>
   [asm|
-  add $128, %rdi
+  add $128, ${ptr}
   dec ${len}
   jnz loop|] <> unroll "i" [15,14..12] [asm|
   pop %r${i} |]
