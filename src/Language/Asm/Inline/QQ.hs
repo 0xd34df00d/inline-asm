@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE FlexibleContexts, MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings, RecordWildCards, MultiWayIf #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, MultiWayIf, ViewPatterns #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -24,6 +24,7 @@ import Data.Char
 import Data.Either.Combinators
 import Data.Foldable
 import Data.Functor
+import Data.List
 import Data.String
 import Data.Void
 import Foreign.Ptr
@@ -99,13 +100,22 @@ substituteArgs :: AsmQQType -> AsmQQCode -> Either String AsmQQCode
 substituteArgs AsmQQType { .. } asmCode = do
   argRegs <- computeRegisters args
   retRegs <- computeRegisters rets
-  let subst varName = do
-        let var = AsmVarName varName
-        maybeReg <- gets $ \(argRegs, retRegs) -> msum [lookup var argRegs, lookup var retRegs]
+  res <- substitute subst asmCode
+  evalStateT res $ M.fromList $ retRegs <> argRegs
+  where
+    subst arg | "move" `isPrefixOf` arg = moveReg arg
+              | otherwise = do
+        let var = AsmVarName arg
+        maybeReg <- gets $ \regMap -> M.lookup var regMap
         RegName reg <- liftEither $ maybeToRight ("Unknown argument: `" <> show var <> "`") maybeReg
         pure $ '%' : reg
-  res <- substitute subst asmCode
-  evalStateT res (argRegs, retRegs)
+
+    moveReg (words -> ["move", regName, reg]) = do
+      oldReg <- subst regName
+      let mov = "mov " <> oldReg <> ", %" <> reg
+      modify' $ M.insert (AsmVarName regName) (RegName reg)
+      pure mov
+    moveReg s = throwError $ "Unable to parse move command `" <> s <> "`"
 
 newtype RegName = RegName { regName :: String } deriving (Show, IsString)
 
