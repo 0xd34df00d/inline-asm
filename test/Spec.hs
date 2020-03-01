@@ -22,115 +22,115 @@ defineAsmFun "swapInts" [t| Int -> Int -> (Int, Int) |] "xchg %rbx, %r14"
 
 defineAsmFun "timesTwoIntQQ"
   [asmTy| (a : Int) | (_ : Int) |]
-  [asm| add ${a}, ${a} |]
+  [asm| add {a}, {a} |]
 
 defineAsmFun "plusIntQQ"
   [asmTy| (a : Int) (b : Int) | (_ : Int) |]
-  [asm| add ${b}, ${a} |]
+  [asm| add {b}, {a} |]
 
 defineAsmFun "plus3IntQQ"
   [asmTy| (a : Int) (b : Int) (c : Int) | (_ : Int) |]
   [asm|
-  add ${b}, ${a}
-  add ${c}, ${a}
+  add {b}, {a}
+  add {c}, {a}
   |]
 
 defineAsmFun "swap2p1QQ"
   [asmTy| (a : Int) (b : Int) | (a : Int) (b : Int) |]
   [asm|
-  xchg ${a}, ${b}
-  add $1, ${b}
+  xchg {a}, {b}
+  add $1, {b}
   |]
 
 
 defineAsmFun "timesTwoFloatQQ"
   [asmTy| (a : Float) | (_ : Float) |]
-  [asm| addss ${a}, ${a} |]
+  [asm| addss {a}, {a} |]
 
 defineAsmFun "plusFloatQQ"
   [asmTy| (a : Float) (b : Float) | (_ : Float) |]
-  [asm| addss ${b}, ${a} |]
+  [asm| addss {b}, {a} |]
 
 
 defineAsmFun "timesTwoDoubleQQ"
   [asmTy| (a : Double) | (_ : Double) |]
-  [asm| addsd ${a}, ${a} |]
+  [asm| addsd {a}, {a} |]
 
 defineAsmFun "plusDoubleQQ"
   [asmTy| (a : Double) (b : Double) | (_ : Double) |]
-  [asm| addsd ${b}, ${a} |]
+  [asm| addsd {b}, {a} |]
 
 
 defineAsmFun "timesTwoEverything"
   [asmTy| (d : Double) (n : Int) (f : Float) (w : Word) | (_ : Double) (_ : Int) (_ : Float) (_ : Word) |]
   [asm|
-  addsd ${d}, ${d}
-  addss ${f}, ${f}
-  add ${n}, ${n}
-  add ${w}, ${w}
+  addsd {d}, {d}
+  addss {f}, {f}
+  add {n}, {n}
+  add {w}, {w}
   |]
 
 
 defineAsmFun "addPtr"
   [asmTy| (ptr : Ptr Int) (shift : Int) | (_ : Ptr Int) |]
   [asm|
-  add ${shift}, ${ptr}
+  add {shift}, {ptr}
   |]
 
 defineAsmFun "swapPtrs"
   [asmTy| (a : Ptr Int) (b : Ptr Int) | (_ : Ptr Int) (_ : Ptr Int) |]
   [asm|
-  xchg ${a}, ${b}
+  xchg {a}, {b}
   |]
 
 
 defineAsmFun "lastChar"
   [asmTy| (bs : ByteString) (def : Word) | (w : Word) |]
   [asm|
-  test ${bs:len}, ${bs:len}
+  test {bs:len}, {bs:len}
   jz is_zero
-  movzbq -1(${bs:ptr},${bs:len}), ${w}
+  movzbq -1({bs:ptr},{bs:len}), {w}
   RET_HASK
 is_zero:
-  mov ${def}, ${w}
+  mov {def}, {w}
   |]
 
 defineAsmFun "countCharsSSE42"
   [asmTy| (ch : Word8) (ptr : Ptr Word8) (len : Int) | (cnt : Int) |] $
   unroll "i" [12..15]
   [asm|
-  push %r${i}|] <> [asm|
-  vmovd ${ch}, %xmm15
+  push %r{i}|] <> [asm|
+  vmovd {ch}, %xmm15
   vpxor %xmm0, %xmm0, %xmm0
   vpshufb %xmm0, %xmm15, %xmm15
 
-  shr $7, ${len}
+  shr $7, {len}
 
   mov $16, %eax
   mov $16, %edx
 
-  xor ${cnt}, ${cnt}
+  xor {cnt}, {cnt}
 
-  ${move ptr rdi}
+  {move ptr rdi}
 loop: |] <> unrolls "i" [1..8] [
   [asm|
-  vmovdqa ${(i - 1) * 0x10}(${ptr}), %xmm${i}
+  vmovdqa {(i - 1) * 0x10}({ptr}), %xmm{i}
   |], [asm|
-  vpcmpestrm $10, %xmm15, %xmm${i}
-  vmovdqa %xmm0, %xmm${i}
+  vpcmpestrm $10, %xmm15, %xmm{i}
+  vmovdqa %xmm0, %xmm{i}
   |], [asm|
-  vmovq %xmm${i}, %r${i + 7}
+  vmovq %xmm{i}, %r{i + 7}
   |], [asm|
-  popcnt %r${i + 7}, %r${i + 7}
+  popcnt %r{i + 7}, %r{i + 7}
   |], [asm|
-  add %r${i + 7}, ${cnt}
+  add %r{i + 7}, {cnt}
   |]
   ] <>
   [asm|
-  add $128, ${ptr}
-  dec ${len}
+  add $128, {ptr}
+  dec {len}
   jnz loop|] <> unroll "i" [15,14..12] [asm|
-  pop %r${i} |]
+  pop %r{i} |]
 
 countChars :: Word8 -> BS.ByteString -> Int
 countChars ch bs | BS.length bs <= 256 = BS.count ch bs

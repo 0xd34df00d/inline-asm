@@ -11,16 +11,16 @@ defineAsmFun "swap" [t| Int -> Int -> (Int, Int) |] "xchg %rbx, %r14"
 defineAsmFun "swap2p1"
   [asmTy| (a : Int) (b : Int) | (a : Int) (b : Int) |]
   [asm|
-  xchg ${a}, ${b}
-  add $1, ${b}
+  xchg {a}, {b}
+  add $1, {b}
   |]
 
 {-
 defineAsmFun "swap2p1"
   [t| Int -> Int -> (Int, Int) |]
   [asm| a b |
-  xchg ${a}, ${b}
-  add $1, ${b}
+  xchg {a}, {b}
+  add $1, {b}
   |]
 
 defineAsmFun "testInt" [t| Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int |] "int $3"

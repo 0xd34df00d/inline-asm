@@ -81,7 +81,7 @@ unroll var ints code = case substitute sub code of
   where
     sub str = case traverse (\n -> parseExpr var n str) ints of
                    Right results -> show <$> ZipList results
-                   Left _ -> pure $ "${" <> str <> "}"
+                   Left _ -> pure $ "{" <> str <> "}"
 
 unrolls :: String -> [Int] -> [AsmQQCode] -> AsmQQCode
 unrolls var ints = foldMap $ unroll var ints
@@ -89,7 +89,7 @@ unrolls var ints = foldMap $ unroll var ints
 substitute :: Applicative f => (String -> f String) -> AsmQQCode -> Either String (f AsmQQCode)
 substitute subst AsmQQCode { .. } = fmap AsmQQCode <$> go asmCode
   where
-    go ('$' : '{' : rest)
+    go ('{' : rest)
       | (argStr, '}' : rest') <- break (== '}') rest
       , not $ null argStr = ((<>) <$> subst (trim argStr) <*>) <$> go rest'
       | otherwise = Left $ "Unable to parse argument: " <> take 20 rest <> "..."
