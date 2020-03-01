@@ -1,5 +1,11 @@
 # Changelog for inline-asm
 
+## v0.4.0.0
+
+* Add helpers (`unroll`/`unrolls`) for compile-time loop unrolling.
+* Add `move` remapping command.
+* Use `{}` for escaping instead of `${}` to improve readability.
+
 ## v0.3.1.0
 
 * Support passing `ByteString`s to the assembly.
