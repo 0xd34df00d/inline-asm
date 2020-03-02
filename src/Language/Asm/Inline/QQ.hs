@@ -63,8 +63,8 @@ parseExpr var inputStr = liftEither $ first showParseError $ runParser (expr <* 
   where
     expr = makeExprParser term table <?> "expr"
     term = parens expr
-       <|> (ML.signed lexSpace (string "0x" *> ML.hexadecimal <|> ML.decimal) <&> const)
-       <|> (lexeme (string var) $> id)
+       <|> lexeme (ML.signed lexSpace (string "0x" *> ML.hexadecimal <|> ML.decimal) <&> const)
+       <|> lexeme (string var $> id)
     table = [ [ binary "*" (*) ]
             , [ binary "+" (+)
               , binary "-" (-)
