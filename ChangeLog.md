@@ -1,5 +1,9 @@
 # Changelog for inline-asm
 
+## v0.4.0.1
+
+* Fix expression parser not parsing some expressions it definitely should parse.
+
 ## v0.4.0.0
 
 * Add helpers (`unroll`/`unrolls`) for compile-time loop unrolling.
