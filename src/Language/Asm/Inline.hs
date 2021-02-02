@@ -85,7 +85,7 @@ mkFunD funName importedName funTy = do
                Nothing -> [e| rebox $(pure funAppE) |]
                Just n -> do
                   retNames <- replicateM n $ newName "ret"
-                  boxing <- forM retNames $ \name -> [e| rebox $(pure $ VarE name) |]
+                  boxing <- forM retNames $ \name -> Just <$> [e| rebox $(pure $ VarE name) |]
                   [e| case $(pure funAppE) of
                            $(pure $ UnboxedTupP $ VarP <$> retNames) -> $(pure $ TupE boxing)
                     |]
