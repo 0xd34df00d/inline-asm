@@ -1,5 +1,5 @@
 name:                inline-asm
-version:             0.4.0.1
+version:             0.4.0.2
 github:              "0xd34df00d/inline-asm"
 license:             BSD3
 author:              "Georg Rudoy"

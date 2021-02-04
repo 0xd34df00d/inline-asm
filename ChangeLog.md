@@ -1,5 +1,9 @@
 # Changelog for inline-asm
 
+## v0.4.0.2
+
+* Fix compatibility with the recently released template-haskell-2.16.0.0.
+
 ## v0.4.0.1
 
 * Fix expression parser not parsing some expressions it definitely should parse.
