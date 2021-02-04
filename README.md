@@ -112,7 +112,8 @@ by picking a wrong register for temporary computations.
 We might introduce some syntax to pick unused registers in a future version, but for now care must be taken.
 
 `ByteString` parameters are supported, but, being composite objects, they are a bit special:
-an input parameter
+an input parameter of type `ByteString` actually takes two registers:
+one for the address of the string, and one for its length.
 
 Sometimes it might be handy to reassociate an input parameter with another register.
 For this, the `{move argName newReg}` antiquoter can be used (for instance, `{move someInt rdi}`).
@@ -156,7 +157,7 @@ The `countCharSSE42` function above might be a pretty good example.
 
 ## Safety and notes
 
-* First of all, all this is utterly unsafe.
+* Firstly, all of this is utterly unsafe.
 * The compiler sees the generated functions as pure, so if a function calls,
   say, `RDRAND` and is itself called more than once to get several random numbers,
   care must be taken to ensure the compiler doesn't elide extra calls.
@@ -166,7 +167,7 @@ The `countCharSSE42` function above might be a pretty good example.
   so one can freely pick arbitrary naming for the labels and so on,
   but, on the other hand, one cannot access labels in other functions.
   This can be remedied somewhat easily — consider throwing up an issue if that's actually desired.
-* Finally, all this is utterly unsafe.
+* Finally, all of this is utterly unsafe.
 
 [travis]:        <https://travis-ci.org/0xd34df00d/inline-asm>
 [travis-badge]:  <https://travis-ci.org/0xd34df00d/inline-asm.svg?branch=master>
