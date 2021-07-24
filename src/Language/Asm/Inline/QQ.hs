@@ -234,8 +234,9 @@ unreflectRetTy rets = do
   maybeRetTyNames <- lookupTyNames rets
   case maybeRetTyNames of
        Left err -> error err
-       Right [tyName] -> if | tyName == ''Ptr -> [t| Ptr () |]
-                            | otherwise -> pure $ ConT tyName
+       Right [tyName] -> if tyName == ''Ptr
+                           then [t| Ptr () |]
+                           else pure $ ConT tyName
        Right retNames -> pure $ foldl retFolder (TupleT $ length retNames) retNames
   where
     retFolder tupAcc ret | ret == ''Ptr = tupAcc `AppT` (ConT ret `AppT` TupleT 0)
