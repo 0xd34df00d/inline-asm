@@ -137,14 +137,11 @@ computeRegisters vars = fst <$> foldM handleType ([], mempty) vars
 data VarTyCat = Integer | Other deriving (Eq, Ord, Show, Enum, Bounded)
 
 categorize :: AsmVarName -> AsmVarType -> Either String [(AsmVarName, VarTyCat)]
-categorize name (AsmVarType "Int") = pure [(name, Integer)]
-categorize name (AsmVarType "Word") = pure [(name, Integer)]
-categorize name (AsmVarType "Word8") = pure [(name, Integer)]
-categorize name (AsmVarType "Ptr") = pure [(name, Integer)]
-categorize name (AsmVarType "Float") = pure [(name, Other)]
-categorize name (AsmVarType "Double") = pure [(name, Other)]
+categorize name (AsmVarType ty)
+  | ty `elem` ["Int", "Word", "Word8", "Ptr"] = pure [(name, Integer)]
+  | ty `elem` ["Float", "Double"] = pure [(name, Other)]
 categorize name (AsmVarType "ByteString") = pure [(name <> ":ptr", Integer), (name <> ":len", Integer)]
-categorize _ (AsmVarType s) = throwError $ "Unknown register type: " <> s
+categorize _ (AsmVarType s) = throwError $ "Unknown register type for variable type `" <> s <> "`"
 
 argIdxToReg :: VarTyCat -> Int -> Either String RegName
 argIdxToReg Integer 0 = pure "rbx"
