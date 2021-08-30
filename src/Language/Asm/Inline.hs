@@ -4,6 +4,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE CPP #-}
 
+#include "MachDeps.h"
+
 module Language.Asm.Inline(defineAsmFun) where
 
 import qualified Data.ByteString as BS
@@ -11,6 +13,7 @@ import Control.Monad
 import Data.Generics.Uniplate.Data
 import Data.List
 import Foreign.Ptr
+import GHC.Int
 import GHC.Prim
 import GHC.Ptr
 import GHC.Types hiding (Type)
@@ -30,6 +33,26 @@ instance AsmArg Int 'IntRep Int# where
   unbox (I# w) = w
   rebox = I#
 
+instance AsmArg Int8 'IntRep Int# where
+  unbox (I8# w) = w
+  rebox = I8#
+
+instance AsmArg Int16 'IntRep Int# where
+  unbox (I16# w) = w
+  rebox = I16#
+
+instance AsmArg Int32 'IntRep Int# where
+  unbox (I32# w) = w
+  rebox = I32#
+
+#if WORD_SIZE_IN_BITS > 32
+instance AsmArg Int64 'IntRep Int# where
+#else
+instance AsmArg Int64 'Int64Rep Int64# where
+#endif
+  unbox (I64# w) = w
+  rebox = I64#
+
 instance AsmArg Word 'WordRep Word# where
   unbox (W# w) = w
   rebox = W#
@@ -37,6 +60,22 @@ instance AsmArg Word 'WordRep Word# where
 instance AsmArg Word8 'WordRep Word# where
   unbox (W8# w) = w
   rebox = W8#
+
+instance AsmArg Word16 'WordRep Word# where
+  unbox (W16# w) = w
+  rebox = W16#
+
+instance AsmArg Word32 'WordRep Word# where
+  unbox (W32# w) = w
+  rebox = W32#
+
+#if WORD_SIZE_IN_BITS > 32
+instance AsmArg Word64 'WordRep Word# where
+#else
+instance AsmArg Word64 'Word64Rep Word64# where
+#endif
+  unbox (W64# w) = w
+  rebox = W64#
 
 instance AsmArg Double 'DoubleRep Double# where
   unbox (D# d) = d
@@ -102,15 +141,15 @@ mkFunD funName importedName funTy = do
                                                                    |]
                              | otherwise = [e| $(pure acc) (unbox $(pure argName)) |]
 
+{-# NOINLINE unliftType #-}
 unliftType :: Type -> Type
 unliftType = transformBi unliftTuple
            . transformBi unliftBaseTy
            . transformBi unliftPtrs
            . transformBi unliftBS
   where
-    unliftBaseTy x | x == ''Word = ''Word#
-                   | x == ''Word8 = ''Word#
-                   | x == ''Int = ''Int#
+    unliftBaseTy x | x `elem` [ ''Word, ''Word8, ''Word16, ''Word32, ''Word64 ] = ''Word#
+                   | x `elem` [ ''Int, ''Int8, ''Int16, ''Int32, ''Int64 ] = ''Int#
                    | x == ''Double = ''Double#
                    | x == ''Float = ''Float#
                    | otherwise = x

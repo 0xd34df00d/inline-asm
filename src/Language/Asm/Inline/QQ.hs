@@ -138,8 +138,12 @@ data VarTyCat = Integer | Other deriving (Eq, Ord, Show, Enum, Bounded)
 
 categorize :: AsmVarName -> AsmVarType -> Either String [(AsmVarName, VarTyCat)]
 categorize name (AsmVarType ty)
-  | ty `elem` ["Int", "Word", "Word8", "Ptr"] = pure [(name, Integer)]
+  | ty `elem` (integralFamily "Int"
+            <> integralFamily "Word"
+            <> ["Ptr"]) = pure [(name, Integer)]
   | ty `elem` ["Float", "Double"] = pure [(name, Other)]
+  where
+    integralFamily base = [base, base <> "8", base <> "16", base <> "32", base <> "64"]
 categorize name (AsmVarType "ByteString") = pure [(name <> ":ptr", Integer), (name <> ":len", Integer)]
 categorize _ (AsmVarType s) = throwError $ "Unknown register type for variable type `" <> s <> "`"
 
