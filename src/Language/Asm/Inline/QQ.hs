@@ -140,7 +140,7 @@ categorize :: AsmVarName -> AsmVarType -> Either String [(AsmVarName, VarTyCat)]
 categorize name (AsmVarType ty)
   | ty `elem` (integralFamily "Int"
             <> integralFamily "Word"
-            <> ["Ptr"]) = pure [(name, Integer)]
+            <> ["Ptr", "Unit"]) = pure [(name, Integer)]
   | ty `elem` ["Float", "Double"] = pure [(name, Other)]
   where
     integralFamily base = [base, base <> "8", base <> "16", base <> "32", base <> "64"]

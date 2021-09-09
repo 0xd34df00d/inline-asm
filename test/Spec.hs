@@ -19,6 +19,12 @@ defineAsmFun "timesTwoInt" [t| Int -> Int |] "add %rbx, %rbx"
 defineAsmFun "plusInt" [t| Int -> Int -> Int |] "add %r14, %rbx"
 defineAsmFun "swapInts" [t| Int -> Int -> (Int, Int) |] "xchg %rbx, %r14"
 
+defineAsmFun "noInputs"
+  [asmTy| (_ : Unit) | (out : Int) |]
+  [asm|
+  mov $42, {out}
+  |]
+
 
 defineAsmFun "timesTwoIntQQ"
   [asmTy| (a : Int) | (_ : Int) |]
@@ -152,6 +158,8 @@ asBS (ASCIIString str) = BS8.pack str
 
 main :: IO ()
 main = hspec $ modifyMaxSuccess (const 1000) $ do
+  describe "Works on units" $ do
+    it "noInputs" $ noInputs Unit `shouldBe` 42
   describe "Works with Ints (the non-QQ version)" $ do
     it "timesTwo" $ property $ \num -> timesTwoInt num `shouldBe` num * 2
     it "plusInt" $ property $ \n1 n2 -> plusInt n1 n2 `shouldBe` n1 + n2

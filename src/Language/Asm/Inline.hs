@@ -6,7 +6,10 @@
 
 #include "MachDeps.h"
 
-module Language.Asm.Inline(defineAsmFun) where
+module Language.Asm.Inline
+( defineAsmFun
+, Unit(..)
+) where
 
 import qualified Data.ByteString as BS
 import Control.Monad
@@ -28,6 +31,12 @@ import Language.Asm.Inline.Util
 class AsmArg a (rep :: RuntimeRep) (unboxedTy :: TYPE rep) | a -> rep, a -> unboxedTy where
   unbox :: a -> unboxedTy
   rebox :: unboxedTy -> a
+
+data Unit = Unit
+
+instance AsmArg Unit 'IntRep Int# where
+  unbox _ = 0#
+  rebox _ = Unit
 
 instance AsmArg Int 'IntRep Int# where
   unbox (I# w) = w
@@ -152,6 +161,7 @@ unliftType = transformBi unliftTuple
                    | x `elem` [ ''Int, ''Int8, ''Int16, ''Int32, ''Int64 ] = ''Int#
                    | x == ''Double = ''Double#
                    | x == ''Float = ''Float#
+                   | x == ''Unit = ''Int#
                    | otherwise = x
 
     unliftPtrs (AppT (ConT name) _) | name == ''Ptr = ConT ''Addr#
