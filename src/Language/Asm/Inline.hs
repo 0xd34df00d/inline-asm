@@ -134,11 +134,7 @@ mkFunD funName importedName funTy = do
                Nothing -> [e| rebox $(pure funAppE) |]
                Just n -> do
                   retNames <- replicateM n $ newName "ret"
-#if MIN_VERSION_template_haskell(2, 16, 0)
                   boxing <- forM retNames $ \name -> Just <$> [e| rebox $(pure $ VarE name) |]
-#else
-                  boxing <- forM retNames $ \name -> [e| rebox $(pure $ VarE name) |]
-#endif
                   [e| case $(pure funAppE) of
                            $(pure $ UnboxedTupP $ VarP <$> retNames) -> $(pure $ TupE boxing)
                     |]
