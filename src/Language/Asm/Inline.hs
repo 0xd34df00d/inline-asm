@@ -119,7 +119,7 @@ defineAsmFun name tyAnn asmCode = do
     [ ForeignD $ ImportF Prim Safe asmName importedName $ unliftType funTy
     , SigD name' funTy
     , wrapperFunD
-    , PragmaD $ InlineP name' Inline ConLike AllPhases
+    , PragmaD $ InlineP name' Inline FunLike AllPhases
     ]
   where
     name' = mkName name
