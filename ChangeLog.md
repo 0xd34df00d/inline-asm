@@ -1,5 +1,11 @@
 # Changelog for inline-asm
 
+## v0.5.0.0
+
+* Add `defineAsmFunM` for impure assembly functions (think `rdtsc`) that shall live in a `PrimMonad`.
+* Drop support for template-haskell-2.15.0.0.
+* Introduce (optionally buildable) examples instead of some ad-hoc `app/Main.hs`.
+
 ## v0.4.0.2
 
 * Fix compatibility with the recently released template-haskell-2.16.0.0.
