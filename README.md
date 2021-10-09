@@ -21,7 +21,8 @@ defineAsmFun "swap2p1"
   add $2, {b}
   |]
 ```
-(note the `{a}`, `{b}` antiquoters)
+This provides a function `swap2p1 :: Int -> Int -> (Int, Int)` that, well, swaps two `Int`s.
+Note that the resulting function is pure, and the `{a}`, `{b}` antiquoters.
 
 Getting the last character of a `ByteString`, or a default character if it's empty:
 ```haskell
@@ -36,7 +37,8 @@ is_zero:
   mov {def}, {w}
   |]
 ```
-(note the special `{bs:ptr}` and `{bs:len}` antiquoters, as well as `RET_HASK` command to return early)
+This provides a function `lastChar :: ByteString -> Word -> Word`.
+Note the special `{bs:ptr}` and `{bs:len}` antiquoters, as well as `RET_HASK` command to return early.
 
 SIMD-accelerated character occurrences count in a string:
 ```haskell
@@ -77,8 +79,23 @@ loop: |] <> unrolls "i" [1..8] [
   jnz loop|] <> unroll "i" [15,14..12] [asm|
   pop %r{i} |]
 ```
-(note the `unroll`/`unrolls` Haskell function for compile-time code generation and loop unrolling
-with arithmetic expressions in the templates)
+This provides a function `countCharSSE42 :: Word8 -> Ptr Word8 -> Int -> Int`.
+Note the `unroll`/`unrolls` Haskell function for compile-time code generation and loop unrolling
+with arithmetic expressions in the templates.
+
+Impure computation depending on some external state, like reading the CPU's time stamp counter:
+```haskell
+defineAsmFunM "rdtsc"
+  [asmTy| | (out : Word64) |]
+  [asm|
+  rdtsc
+  mov %rdx, {out}
+  shl $32, {out}
+  add %rax, {out}
+  |]
+```
+This provides a function `rdtsc :: PrimMonad m => m Word64` which can be used in `ST` or `IO` contexts.
+Note the **M** letter in `defineAsmFunM`.
 
 ## Basic usage
 
@@ -120,7 +137,7 @@ For this, the `{move argName newReg}` antiquoter can be used (for instance, `{mo
 This will both update the mapping from argument names to register names
 as well as issue an assembly `mov` command.
 
-In case you need to return early to Haskell-land, just write `RET_HASK`,
+In case you need to return early to the Haskell-land, just write `RET_HASK`,
 which gets substituted by the actual command to return to Haskell.
 
 ### Explicit loop unrolling
@@ -154,15 +171,78 @@ unrolls var ints codes = foldMap (unroll var ints) codes
 
 The `countCharSSE42` function above might be a pretty good example.
 
+### Impure functions
+
+Most of the functions above are actually pure:
+they return the same result given the same parameters and have no side effects.
+Perhaps unsurprisingly, this is not always the case.
+Let's consider the `rdtsc` example again and assume we've written
+```haskell
+defineAsmFun "rdtsc"
+  [asmTy| (_ : Unit) | (out : Word64) |]
+  [asm|
+  rdtsc
+  mov %rdx, {out}
+  shl $32, {out}
+  add %rax, {out}
+  |]
+```
+(BTW we need a dummy `Unit` input here
+since otherwise the type of the generated imported Assembly function would be just `Word64#`,
+which is not a function but a value, and thus disallowed by GHC).
+
+How do we use this function to measure something?
+We'd probably write something like
+```haskell
+measure = do
+  let r1 = rdtsc Unit
+  runLongComputation
+  let r2 = rdtsc Unit
+  print $ r2 - r1
+```
+The problem is that the compiler is very keen on transforming this into
+```haskell
+measure = do
+  let r1 = rdtsc Unit
+  runLongComputation
+  let r2 = r1
+  print $ r2 - r1
+```
+so every computation is executed instantly according to our measurements,
+and no amount of `{-# NOINLINE #-}` and the likes will fix it.
+
+The only fix is to actually thread through the `State#` token,
+which is what happens when we use the monadic function `defineAsmFunM`:
+```haskell
+defineAsmFunM "rdtsc"
+  [asmTy| | (out : Word64) |]
+  [asm|
+  rdtsc
+  mov %rdx, {out}
+  shl $32, {out}
+  add %rax, {out}
+  |]
+```
+In this case, the generated Assembly function would be imported with the type
+`forall s. State# s -> (# State# s, Word64# #)`,
+and what happens to `State# s` is completely opaque to the compiler, so it can no longer "optimize" this,
+and the following works as expected:
+```haskell
+measure = do
+  r1 <- rdtsc
+  runLongComputation
+  r2 <- rdtsc
+  print $ r2 - r1
+```
+
+By the way, now that there's the state token parameter, we no longer need a dummy `Unit`.
 
 ## Safety and notes
 
 * Firstly, all of this is utterly unsafe.
-* The compiler sees the generated functions as pure, so if a function calls,
-  say, `RDRAND` and is itself called more than once to get several random numbers,
-  care must be taken to ensure the compiler doesn't elide extra calls.
-  We might introduce some shortcuts to allow wrapping such impure functions
-  in an `IO` or `PrimMonad` or soemthing similar.
+* While this package provides some shortcuts,
+  understanding the calling convention (in particular, which registers are actually used) is important.
+  The best source of truth is, of course, GHC's [source code](https://github.com/ghc/ghc/blob/HEAD/rts/include/stg/MachRegs.h).
 * Each function is compiled in its own `.S` file,
   so one can freely pick arbitrary naming for the labels and so on,
   but, on the other hand, one cannot access labels in other functions.
