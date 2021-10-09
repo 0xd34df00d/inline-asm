@@ -1,9 +1,16 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
 {-# LANGUAGE GHCForeignImportPrim, UnliftedFFITypes, UnboxedTuples #-}
+{-# LANGUAGE LambdaCase, BlockArguments, NumericUnderscores #-}
 
 module Main where
 
+import Control.Monad
+import Data.List
+import Data.String.Interpolate
+import Graphics.Rendering.Chart.Easy
+import Graphics.Rendering.Chart.Backend.Cairo
 import GHC.Word
+import System.Environment
 
 import Language.Asm.Inline
 import Language.Asm.Inline.QQ
@@ -39,8 +46,8 @@ defineAsmFunM "rdtsc2"
   add %rax, {out2}
   |]
 
-main :: IO ()
-main = do
+example :: IO ()
+example = do
   v1 <- rdtsc
   v2 <- rdtsc
   print v1
@@ -54,3 +61,51 @@ main = do
 
   (o1, o2) <- rdtsc2
   print $ o2 - o1
+
+main :: IO ()
+main = getArgs >>= \case [] -> example
+                         ["bench"] -> bench
+                         _ -> putStrLn "Unknown args"
+
+---- Benchmarking stuff
+bench :: IO ()
+bench = do
+  baselineMeas <- replicateM count do
+    (v1, v2) <- rdtsc2
+    pure $ v2 - v1
+  asmMeas <- replicateM count do
+    v1 <- rdtsc
+    v2 <- rdtsc
+    pure $ v2 - v1
+
+  printPlot [("baseline", baselineMeas), ("asm", asmMeas)]
+  where
+    count = 1_000_000 :: Int
+
+printPlot :: [(String, [Word64])] -> IO ()
+printPlot allStats = do
+  forM_ allStats $ uncurry printStats
+  toFile def "out.png" $ do
+    layout_title .= "rdtsc diff time"
+    mapM_ (plot . uncurry histPlot) allStats
+  where
+    histPlot :: String -> [Word64] -> EC l (Plot Double Int)
+    histPlot name vals = do
+      color <- dissolve 0.7 <$> takeColor
+      pure $ histToPlot $ plot_hist_title .~ name
+                        $ plot_hist_values .~ (fromIntegral <$> removeOutliers vals)
+                        $ plot_hist_fill_style.fill_color .~ color
+                        $ plot_hist_line_style.line_color .~ color
+                        $ defaultPlotHist
+
+printStats :: String -> [Word64] -> IO ()
+printStats name allRuns = putStrLn [i|#{name}:\n    min: #{minimum runs}; max: #{maximum runs}; avg: #{avg}|]
+  where
+    runs = removeOutliers allRuns
+    avg = sum runs `div` genericLength runs
+
+removeOutliers :: [Word64] -> [Word64]
+removeOutliers allRuns = drop cutoff $ take (runsLen - cutoff) $ sort allRuns
+  where
+    runsLen = genericLength allRuns
+    cutoff = runsLen `div` 10000

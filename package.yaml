@@ -49,6 +49,10 @@ executables:
     - -rtsopts
     dependencies:
     - inline-asm
+    - interpolate
+    - lens
+    - Chart
+    - Chart-cairo
     when:
     - condition: flag(with-examples)
       then:
