@@ -152,7 +152,7 @@ stateifyLifted ty = do
 
 -- |Converts the unwrapped/unlifted function type to be a 'primitive' action:
 -- given 'Ty1# -> Ty2# -> Ret#' it produces
--- 'forall s. Ty1# -> Ty2# -> (# State# s, Ret# #)'.
+-- 'forall s. Ty1# -> Ty2# -> State# s -> (# State# s, Ret# #)'.
 stateifyUnlifted :: Type -> Q Type
 stateifyUnlifted ty = do
   s <- newName "s"
