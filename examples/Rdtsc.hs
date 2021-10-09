@@ -70,32 +70,42 @@ main = getArgs >>= \case [] -> example
 ---- Benchmarking stuff
 bench :: IO ()
 bench = do
-  baselineMeas <- replicateM count do
+  baselineMeas <- removeOutliers <$> replicateM count do
     (v1, v2) <- rdtsc2
     pure $ v2 - v1
-  asmMeas <- replicateM count do
+  asmMeas <- removeOutliers <$> replicateM count do
     v1 <- rdtsc
     v2 <- rdtsc
     pure $ v2 - v1
+  cMeas <- removeOutliers <$> replicateM count do
+    v1 <- rdtscC
+    v2 <- rdtscC
+    pure $ v2 - v1
 
-  printPlot [("baseline", baselineMeas), ("asm", asmMeas)]
+  printPlot [("only asm", baselineMeas), ("inline-asm", asmMeas), ("c", cMeas)]
   where
     count = 1_000_000 :: Int
+
+foreign import ccall unsafe "rdtscC"
+  rdtscC :: IO Word64
 
 printPlot :: [(String, [Word64])] -> IO ()
 printPlot allStats = do
   forM_ allStats $ uncurry printStats
-  toFile def "out.png" $ do
+  toFile def "out.svg" $ do
     layout_title .= "rdtsc diff time"
     mapM_ (plot . uncurry histPlot) allStats
   where
+    minVal = fromIntegral $ minimum $ concat $ snd <$> allStats
+    maxVal = fromIntegral $ maximum $ concat $ snd <$> allStats
     histPlot :: String -> [Word64] -> EC l (Plot Double Int)
     histPlot name vals = do
-      color <- dissolve 0.7 <$> takeColor
+      color <- takeColor
       pure $ histToPlot $ plot_hist_title .~ name
-                        $ plot_hist_values .~ (fromIntegral <$> removeOutliers vals)
-                        $ plot_hist_fill_style.fill_color .~ color
+                        $ plot_hist_values .~ (fromIntegral <$> vals)
+                        $ plot_hist_fill_style.fill_color .~ dissolve 0.2 color
                         $ plot_hist_line_style.line_color .~ color
+                        $ plot_hist_range ?~ (minVal, maxVal)
                         $ defaultPlotHist
 
 printStats :: String -> [Word64] -> IO ()

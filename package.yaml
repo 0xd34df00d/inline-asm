@@ -53,6 +53,8 @@ executables:
     - lens
     - Chart
     - Chart-cairo
+    c-sources:
+    - examples/cbits/rdtsc.c
     when:
     - condition: flag(with-examples)
       then:
