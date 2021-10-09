@@ -18,10 +18,12 @@ import Language.Asm.Inline.QQ
 defineAsmFunM "rdtsc"
   [asmTy| | (out : Word64) |]
   [asm|
+  lfence
   rdtsc
   mov %rdx, {out}
   shl $32, {out}
   add %rax, {out}
+  lfence
   |]
 
 defineAsmFunM "rdtscP"
@@ -35,15 +37,19 @@ defineAsmFunM "rdtscP"
 defineAsmFunM "rdtsc2"
   [asmTy| | (out1 : Word64) (out2 : Word64) |]
   [asm|
+  lfence
   rdtsc
   mov %rdx, {out1}
   shl $32, {out1}
   add %rax, {out1}
+  lfence
 
+  lfence
   rdtsc
   mov %rdx, {out2}
   shl $32, {out2}
   add %rax, {out2}
+  lfence
   |]
 
 example :: IO ()
