@@ -1,4 +1,4 @@
-{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE MagicHash, UnboxedTuples #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, UndecidableInstances, FunctionalDependencies #-}
 {-# LANGUAGE DataKinds, PolyKinds, TypeFamilies #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -8,11 +8,13 @@
 
 module Language.Asm.Inline
 ( defineAsmFun
+, defineAsmFunM
 , Unit(..)
 ) where
 
 import qualified Data.ByteString as BS
 import Control.Monad
+import Control.Monad.Primitive
 import Data.Generics.Uniplate.Data
 import Data.List
 import Foreign.Ptr
@@ -105,19 +107,24 @@ replace what with = go
     go str@(s:ss) | what `isPrefixOf` str = with <> go (drop (length what) str)
                   | otherwise = s : go ss
 
-defineAsmFun :: AsmCode tyAnn code => String -> tyAnn -> code -> Q [Dec]
-defineAsmFun name tyAnn asmCode = do
+data FunKind = Pure | Monadic
+
+defineAsmFunImpl :: AsmCode tyAnn code => FunKind -> String -> tyAnn -> code -> Q [Dec]
+defineAsmFunImpl kind name tyAnn asmCode = do
   addForeignSource LangAsm $ unlines [ ".global " <> asmName
                                      , asmName <> ":"
                                      , replace "RET_HASK" retToHask $ codeToString tyAnn asmCode
                                      , retToHask
                                      ]
   funTy <- toTypeQ tyAnn
+  (importedTy, sigTy) <- case kind of
+                              Pure -> pure (funTy, funTy)
+                              Monadic -> (,) <$> stateifyUnlifted funTy <*> stateifyLifted funTy
   let importedName = mkName asmName
-  wrapperFunD <- mkFunD name importedName funTy
+  wrapperFunD <- mkFunD kind name importedName funTy
   pure
-    [ ForeignD $ ImportF Prim Safe asmName importedName $ unliftType funTy
-    , SigD name' funTy
+    [ ForeignD $ ImportF Prim Safe asmName importedName $ unliftType importedTy
+    , SigD name' sigTy
     , wrapperFunD
     , PragmaD $ InlineP name' Inline FunLike AllPhases
     ]
@@ -126,19 +133,69 @@ defineAsmFun name tyAnn asmCode = do
     asmName = name <> "_unlifted"
     retToHask = "jmp *(%rbp)"
 
-mkFunD :: String -> Name -> Type -> Q Dec
-mkFunD funName importedName funTy = do
+defineAsmFun :: AsmCode tyAnn code => String -> tyAnn -> code -> Q [Dec]
+defineAsmFun = defineAsmFunImpl Pure
+
+defineAsmFunM :: AsmCode tyAnn code => String -> tyAnn -> code -> Q [Dec]
+defineAsmFunM = defineAsmFunImpl Monadic
+
+-- |Converts the wrapped function type to live in a 'PrimMonad':
+-- given 'Ty1 -> Ty2 -> Ret' it produces
+-- 'forall m. PrimMonad m => Ty1 -> Ty2 -> m Ret'.
+stateifyLifted :: Type -> Q Type
+stateifyLifted ty = do
+  m <- newName "m"
+  ForallT [PlainTV m] [AppT (ConT ''PrimMonad) (VarT m)] <$> go m ty
+  where
+    go m (AppT (AppT ArrowT lhs) rhs) = AppT (AppT ArrowT lhs) <$> go m rhs
+    go m rhs = [t| $(pure $ VarT m) $(pure rhs) |]
+
+-- |Converts the unwrapped/unlifted function type to be a 'primitive' action:
+-- given 'Ty1# -> Ty2# -> Ret#' it produces
+-- 'forall s. Ty1# -> Ty2# -> (# State# s, Ret# #)'.
+stateifyUnlifted :: Type -> Q Type
+stateifyUnlifted ty = do
+  s <- newName "s"
+  ForallT [PlainTV s] [] <$> go s ty
+  where
+    go s (AppT (AppT ArrowT lhs) rhs) = AppT (AppT ArrowT lhs) <$> go s rhs
+    go s rhs = [t| State# $(pure $ VarT s) -> (# State# $(pure $ VarT s), $(pure rhs) #) |]
+
+mkFunD :: FunKind -> String -> Name -> Type -> Q Dec
+mkFunD kind funName importedName funTy = do
+  token <- newName "token"
   argNames <- replicateM (countArgs funTy) $ newName "arg"
   funAppE <- foldM f (VarE importedName) $ zip (VarE <$> argNames) (getArgs funTy)
+  fullFunAppE <- case kind of
+                      Pure -> pure funAppE
+                      Monadic -> [e| $(pure funAppE) $(pure $ VarE token) |]
+
   body <- case detectRetTuple funTy of
-               Nothing -> [e| rebox $(pure funAppE) |]
+               Nothing ->
+                 case kind of
+                      Pure ->
+                        [e| rebox $(pure fullFunAppE) |]
+                      Monadic ->
+                        [e| case $(pure fullFunAppE) of
+                                 (# token', res #) -> (# token', rebox res #)
+                          |]
                Just n -> do
                   retNames <- replicateM n $ newName "ret"
                   boxing <- forM retNames $ \name -> Just <$> [e| rebox $(pure $ VarE name) |]
-                  [e| case $(pure funAppE) of
-                           $(pure $ UnboxedTupP $ VarP <$> retNames) -> $(pure $ TupE boxing)
-                    |]
-  pure $ FunD (mkName funName) [Clause (VarP <$> argNames) (NormalB body) []]
+                  case kind of
+                       Pure ->
+                          [e| case $(pure fullFunAppE) of
+                                   $(pure $ UnboxedTupP $ VarP <$> retNames) -> $(pure $ TupE boxing)
+                            |]
+                       Monadic ->
+                          [e| case $(pure fullFunAppE) of
+                                   (# token', $(pure $ UnboxedTupP $ VarP <$> retNames) #) -> (# token', $(pure $ TupE boxing) #)
+                            |]
+
+  body' <- case kind of
+                Pure -> pure body
+                Monadic -> [e| primitive (\ $(pure $ VarP token) -> $(pure body)) |]
+  pure $ FunD (mkName funName) [Clause (VarP <$> argNames) (NormalB body') []]
   where
     f acc (argName, argType) | argType == ConT ''BS.ByteString = [e| $(pure acc)
                                                                             (unbox $ getBSAddr $(pure argName))

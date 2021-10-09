@@ -24,6 +24,7 @@ dependencies:
 - megaparsec
 - mtl
 - parser-combinators
+- primitive
 - template-haskell >= 2.16.0.0
 - uniplate
 
