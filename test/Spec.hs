@@ -25,6 +25,14 @@ defineAsmFun "noInputs"
   mov $42, {out}
   |]
 
+defineAsmFunM "rdtsc"
+  [asmTy| | (out : Word64) |]
+  [asm|
+  rdtsc
+  mov %rdx, {out}
+  shl $32, {out}
+  add %rax, {out}
+  |]
 
 defineAsmFun "timesTwoIntQQ"
   [asmTy| (a : Int) | (_ : Int) |]
@@ -159,7 +167,12 @@ asBS (ASCIIString str) = BS8.pack str
 main :: IO ()
 main = hspec $ modifyMaxSuccess (const 1000) $ do
   describe "Works on units" $ do
-    it "noInputs" $ noInputs Unit `shouldBe` 42
+    it "no inputs is ok" $ noInputs Unit `shouldBe` 42
+  describe "Works on rdtsc" $ do
+    it "is increasing" $ property $ \() -> do
+      v1 <- rdtsc
+      v2 <- rdtsc
+      (v1, v2) `shouldSatisfy` uncurry (<)
   describe "Works with Ints (the non-QQ version)" $ do
     it "timesTwo" $ property $ \num -> timesTwoInt num `shouldBe` num * 2
     it "plusInt" $ property $ \n1 n2 -> plusInt n1 n2 `shouldBe` n1 + n2
