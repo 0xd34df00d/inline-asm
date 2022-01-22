@@ -36,6 +36,22 @@ class AsmArg a (unboxedTy :: TYPE rep) | a -> unboxedTy where
 
 data Unit = Unit
 
+#if MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
+type Int8Rep# = Int8#
+type Int16Rep# = Int16#
+type Int32Rep# = Int32#
+type Word8Rep# = Word8#
+type Word16Rep# = Word16#
+type Word32Rep# = Word32#
+#else
+type Int8Rep# = Int#
+type Int16Rep# = Int#
+type Int32Rep# = Int#
+type Word8Rep# = Word#
+type Word16Rep# = Word#
+type Word32Rep# = Word#
+#endif
+
 instance AsmArg Unit Int# where
   unbox _ = 0#
   rebox _ = Unit
@@ -44,15 +60,15 @@ instance AsmArg Int Int# where
   unbox (I# w) = w
   rebox = I#
 
-instance AsmArg Int8 Int# where
+instance AsmArg Int8 Int8Rep# where
   unbox (I8# w) = w
   rebox = I8#
 
-instance AsmArg Int16 Int# where
+instance AsmArg Int16 Int16Rep# where
   unbox (I16# w) = w
   rebox = I16#
 
-instance AsmArg Int32 Int# where
+instance AsmArg Int32 Int32Rep# where
   unbox (I32# w) = w
   rebox = I32#
 
@@ -68,15 +84,15 @@ instance AsmArg Word Word# where
   unbox (W# w) = w
   rebox = W#
 
-instance AsmArg Word8 Word# where
+instance AsmArg Word8 Word8Rep# where
   unbox (W8# w) = w
   rebox = W8#
 
-instance AsmArg Word16 Word# where
+instance AsmArg Word16 Word16Rep# where
   unbox (W16# w) = w
   rebox = W16#
 
-instance AsmArg Word32 Word# where
+instance AsmArg Word32 Word32Rep# where
   unbox (W32# w) = w
   rebox = W32#
 
