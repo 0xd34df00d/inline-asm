@@ -155,13 +155,21 @@ defineAsmFun = defineAsmFunImpl Pure
 defineAsmFunM :: AsmCode tyAnn code => String -> tyAnn -> code -> Q [Dec]
 defineAsmFunM = defineAsmFunImpl Monadic
 
+#if MIN_VERSION_template_haskell(2, 18, 0)
+mkPlainTV :: Name -> TyVarBndr Specificity
+mkPlainTV n = PlainTV n SpecifiedSpec
+#else
+mkPlainTV :: Name -> TyVarBndr
+mkPlainTV = PlainTV
+#endif
+
 -- |Converts the wrapped function type to live in a 'PrimMonad':
 -- given 'Ty1 -> Ty2 -> Ret' it produces
 -- 'forall m. PrimMonad m => Ty1 -> Ty2 -> m Ret'.
 stateifyLifted :: Type -> Q Type
 stateifyLifted ty = do
   m <- newName "m"
-  ForallT [PlainTV m] [AppT (ConT ''PrimMonad) (VarT m)] <$> go m ty
+  ForallT [mkPlainTV m] [AppT (ConT ''PrimMonad) (VarT m)] <$> go m ty
   where
     go m (AppT (AppT ArrowT lhs) rhs) = AppT (AppT ArrowT lhs) <$> go m rhs
     go m rhs = [t| $(pure $ VarT m) $(pure rhs) |]
@@ -172,7 +180,7 @@ stateifyLifted ty = do
 stateifyUnlifted :: Type -> Q Type
 stateifyUnlifted ty = do
   s <- newName "s"
-  ForallT [PlainTV s] [] <$> go s ty
+  ForallT [mkPlainTV s] [] <$> go s ty
   where
     go s (AppT (AppT ArrowT lhs) rhs) = AppT (AppT ArrowT lhs) <$> go s rhs
     go s rhs = [t| State# $(pure $ VarT s) -> (# State# $(pure $ VarT s), $(pure rhs) #) |]
