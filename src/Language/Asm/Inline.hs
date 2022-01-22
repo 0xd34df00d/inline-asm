@@ -234,12 +234,25 @@ unliftType = transformBi unliftTuple
            . transformBi unliftPtrs
            . transformBi unliftBS
   where
-    unliftBaseTy x | x `elem` [ ''Word, ''Word8, ''Word16, ''Word32, ''Word64 ] = ''Word#
-                   | x `elem` [ ''Int, ''Int8, ''Int16, ''Int32, ''Int64 ] = ''Int#
-                   | x == ''Double = ''Double#
-                   | x == ''Float = ''Float#
-                   | x == ''Unit = ''Int#
-                   | otherwise = x
+    unliftBaseTy x
+#if MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
+      | x == ''Word || x == ''Word64 = ''Word#
+      | x == ''Word8 = ''Word8#
+      | x == ''Word16 = ''Word16#
+      | x == ''Word32 = ''Word32#
+
+      | x == ''Int || x == ''Int64 = ''Int#
+      | x == ''Int8 = ''Int8#
+      | x == ''Int16 = ''Int16#
+      | x == ''Int32 = ''Int32#
+#else
+      | x `elem` [ ''Word, ''Word8, ''Word16, ''Word32, ''Word64 ] = ''Word#
+      | x `elem` [ ''Int, ''Int8, ''Int16, ''Int32, ''Int64 ] = ''Int#
+#endif
+      | x == ''Double = ''Double#
+      | x == ''Float = ''Float#
+      | x == ''Unit = ''Int#
+      | otherwise = x
 
     unliftPtrs (AppT (ConT name) _) | name == ''Ptr = ConT ''Addr#
     unliftPtrs x = x
