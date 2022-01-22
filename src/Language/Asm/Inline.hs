@@ -30,73 +30,73 @@ import System.IO.Unsafe
 import Language.Asm.Inline.AsmCode
 import Language.Asm.Inline.Util
 
-class AsmArg a (rep :: RuntimeRep) (unboxedTy :: TYPE rep) | a -> rep, a -> unboxedTy where
+class AsmArg a (unboxedTy :: TYPE rep) | a -> unboxedTy where
   unbox :: a -> unboxedTy
   rebox :: unboxedTy -> a
 
 data Unit = Unit
 
-instance AsmArg Unit 'IntRep Int# where
+instance AsmArg Unit Int# where
   unbox _ = 0#
   rebox _ = Unit
 
-instance AsmArg Int 'IntRep Int# where
+instance AsmArg Int Int# where
   unbox (I# w) = w
   rebox = I#
 
-instance AsmArg Int8 'IntRep Int# where
+instance AsmArg Int8 Int# where
   unbox (I8# w) = w
   rebox = I8#
 
-instance AsmArg Int16 'IntRep Int# where
+instance AsmArg Int16 Int# where
   unbox (I16# w) = w
   rebox = I16#
 
-instance AsmArg Int32 'IntRep Int# where
+instance AsmArg Int32 Int# where
   unbox (I32# w) = w
   rebox = I32#
 
 #if WORD_SIZE_IN_BITS > 32
-instance AsmArg Int64 'IntRep Int# where
+instance AsmArg Int64 Int# where
 #else
-instance AsmArg Int64 'Int64Rep Int64# where
+instance AsmArg Int64 Int64# where
 #endif
   unbox (I64# w) = w
   rebox = I64#
 
-instance AsmArg Word 'WordRep Word# where
+instance AsmArg Word Word# where
   unbox (W# w) = w
   rebox = W#
 
-instance AsmArg Word8 'WordRep Word# where
+instance AsmArg Word8 Word# where
   unbox (W8# w) = w
   rebox = W8#
 
-instance AsmArg Word16 'WordRep Word# where
+instance AsmArg Word16 Word# where
   unbox (W16# w) = w
   rebox = W16#
 
-instance AsmArg Word32 'WordRep Word# where
+instance AsmArg Word32 Word# where
   unbox (W32# w) = w
   rebox = W32#
 
 #if WORD_SIZE_IN_BITS > 32
-instance AsmArg Word64 'WordRep Word# where
+instance AsmArg Word64 Word# where
 #else
-instance AsmArg Word64 'Word64Rep Word64# where
+instance AsmArg Word64 Word64# where
 #endif
   unbox (W64# w) = w
   rebox = W64#
 
-instance AsmArg Double 'DoubleRep Double# where
+instance AsmArg Double Double# where
   unbox (D# d) = d
   rebox = D#
 
-instance AsmArg Float 'FloatRep Float# where
+instance AsmArg Float Float# where
   unbox (F# f) = f
   rebox = F#
 
-instance AsmArg (Ptr a) 'AddrRep Addr# where
+instance AsmArg (Ptr a) Addr# where
   unbox (Ptr p) = p
   rebox = Ptr
 
