@@ -1,5 +1,9 @@
 # Changelog for inline-asm
 
+## v0.5.0.1
+
+* GHC 9.2 compatibility.
+
 ## v0.5.0.0
 
 * Add `defineAsmFunM` for impure assembly functions (think `rdtsc`) that shall live in a `PrimMonad`.
