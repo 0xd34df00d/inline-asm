@@ -47,9 +47,18 @@ type Word32Rep# = Word32#
 type Int8Rep# = Int#
 type Int16Rep# = Int#
 type Int32Rep# = Int#
+type Int64Rep# = Int#
 type Word8Rep# = Word#
 type Word16Rep# = Word#
 type Word32Rep# = Word#
+#endif
+
+#if MIN_VERSION_GLASGOW_HASKELL(9,4,0,0)
+type Int64Rep# = Int64#
+type Word64Rep# = Word64#
+#else
+type Int64Rep# = Int#
+type Word64Rep# = Word#
 #endif
 
 instance AsmArg Unit Int# where
@@ -73,7 +82,7 @@ instance AsmArg Int32 Int32Rep# where
   rebox = I32#
 
 #if WORD_SIZE_IN_BITS > 32
-instance AsmArg Int64 Int# where
+instance AsmArg Int64 Int64Rep# where
 #else
 instance AsmArg Int64 Int64# where
 #endif
@@ -97,7 +106,7 @@ instance AsmArg Word32 Word32Rep# where
   rebox = W32#
 
 #if WORD_SIZE_IN_BITS > 32
-instance AsmArg Word64 Word# where
+instance AsmArg Word64 Word64Rep# where
 #else
 instance AsmArg Word64 Word64# where
 #endif
