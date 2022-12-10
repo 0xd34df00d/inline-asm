@@ -1,7 +1,3 @@
 resolver: lts-20.1
 packages:
 - .
-extra-deps:
-- Chart-cairo-1.9.3
-- cairo-0.13.8.1
-- gtk2hs-buildtools-0.13.8.1
