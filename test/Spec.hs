@@ -6,6 +6,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import Data.ByteString(ByteString)
 import Foreign.Ptr
+import GHC.Int
 import GHC.Word
 import Test.Hspec
 import Test.Hspec.Core.QuickCheck
@@ -40,6 +41,14 @@ defineAsmFun "timesTwoIntQQ"
 
 defineAsmFun "plusIntQQ"
   [asmTy| (a : Int) (b : Int) | (_ : Int) |]
+  [asm| add {b}, {a} |]
+
+defineAsmFun "plusInt64QQ"
+  [asmTy| (a : Int64) (b : Int64) | (_ : Int64) |]
+  [asm| add {b}, {a} |]
+
+defineAsmFun "plusWord64QQ"
+  [asmTy| (a : Word64) (b : Word64) | (_ : Word64) |]
   [asm| add {b}, {a} |]
 
 defineAsmFun "plus3IntQQ"
@@ -182,6 +191,10 @@ main = hspec $ modifyMaxSuccess (const 1000) $ do
     it "plusInt" $ property $ \n1 n2 -> plusIntQQ n1 n2 `shouldBe` n1 + n2
     it "plus3Int" $ property $ \n1 n2 n3 -> plus3IntQQ n1 n2 n3 `shouldBe` n1 + n2 + n3
     it "swap returns a tuple properly" $ property $ \n1 n2 -> swap2p1QQ n1 n2 `shouldBe` (n2, n1 + 1)
+  describe "Works on Int64s" $ do
+    it "plusInt" $ property $ \n1 n2 -> plusInt64QQ n1 n2 `shouldBe` n1 + n2
+  describe "Works on Word64s" $ do
+    it "plusInt" $ property $ \n1 n2 -> plusWord64QQ n1 n2 `shouldBe` n1 + n2
   describe "Works on Floats" $ do
     it "timesTwo" $ property $ \num -> timesTwoFloatQQ num `shouldBe` num * 2
     it "plusFloat" $ property $ \n1 n2 -> plusFloatQQ n1 n2 `shouldBe` n1 + n2
