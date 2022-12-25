@@ -1,5 +1,9 @@
 # Changelog for inline-asm
 
+## v0.5.0.2
+
+* GHC 9.4 compatibility.
+
 ## v0.5.0.1
 
 * GHC 9.2 compatibility.
