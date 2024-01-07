@@ -16,6 +16,7 @@ module Language.Asm.Inline.QQ
 
 import qualified Data.Map as M
 import Control.Applicative(ZipList(..))
+import Control.Monad
 import Control.Monad.Combinators.Expr as CE
 import Control.Monad.Except
 import Control.Monad.State.Strict
